@@ -24,10 +24,9 @@ jobs:
           mkdir build && cd build
           cmake -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install" ..
           cmake --build . --config release --parallel
-          
 
       - name: Run unit tests
         run: |
-          cd tests/unit/build/bin/Release
+          cd tests/unit/build
           ./unit_tests
           
