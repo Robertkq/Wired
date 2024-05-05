@@ -12,6 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          mkdir build && cd build
+          cmake ..
+          cmake --install . --config release
+
       - name: Build tests
         run: |
           cd tests/unit
