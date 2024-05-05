@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.2)
+project(wired_example VERSION 1.0.0)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Find Wired package
+find_package(Wired REQUIRED)
+
+# define client target with Wired as dependency
+add_executable(client src/client.cpp)
+target_link_libraries(client PRIVATE Wired)
+target_include_directories(client PRIVATE include)
+
+# define server target with Wired as dependency
+add_executable(server src/server.cpp)
+target_link_libraries(server PRIVATE Wired)
+target_include_directories(server PRIVATE include)
+
+set_target_properties(client PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+set_target_properties(server PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
