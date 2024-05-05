@@ -1,0 +1,10 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+PointerAlignment: Left
+IndentCaseLabels: true
+ColumnLimit: 0
+DerivePointerAlignment: false
+SortIncludes: true
+...
