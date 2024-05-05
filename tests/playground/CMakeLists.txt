@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.2)
 project(WiredPlayground VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -14,5 +14,6 @@ target_link_libraries(wired_playground PRIVATE Wired)
 target_include_directories(wired_playground PRIVATE include)
 
 set_target_properties(wired_playground PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
 )

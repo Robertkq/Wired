@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.2)
 project(WiredUnitTests VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -24,5 +24,6 @@ target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
 target_include_directories(unit_tests PRIVATE include)
 
 set_target_properties(unit_tests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
 )
