@@ -16,13 +16,13 @@ jobs:
         run: |
           mkdir build && cd build
           cmake ..
-          cmake --install . --config release
+          cmake --install . --config release --prefix install
 
       - name: Build tests
         run: |
           cd tests/unit
           mkdir build && cd build
-          cmake ..
+          cmake .. -DCMAKE_PREFIX_PATH=${{ github.workspace }}/build/install
           cmake --build . --config release --parallel
           
 
