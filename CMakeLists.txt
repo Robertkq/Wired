@@ -12,6 +12,6 @@ target_include_directories(Wired INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 install(TARGETS Wired DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
-install(FILES cmake/Wired-config.cmake DESTINATION cmake)
+install(FILES cmake/wired-config.cmake DESTINATION cmake)
 
 
