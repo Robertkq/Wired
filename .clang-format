@@ -5,4 +5,6 @@ IndentWidth: 4
 TabWidth: 4
 PointerAlignment: Left
 SortIncludes: true
+AlwaysBreakTemplateDeclarations: Yes
+AllowShortEnumsOnASingleLine: false
 ...

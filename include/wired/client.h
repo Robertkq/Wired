@@ -1,16 +1,43 @@
-#ifndef CLIENT_H
-#define CLIENT_H
+#ifndef WIRED_CLIENT_H
+#define WIRED_CLIENT_H
+
+#include <wired/types.h>
 
 #include <asio.hpp>
 #include <iostream>
 
-class Client {
+namespace wired {
+template <typename T>
+class client_interface {
   public:
-    int hello;
-    asio::io_context io_context;
+    client_interface();
+    client_interface(const client_interface& other) = delete;
+    client_interface(client_interface&& other);
+    virtual ~client_interface();
+
+    client_interface& operator=(const client_interface&& other) = delete;
+    client_interface& operator=(client_interface&& other);
+
+    bool connect(const std::string& host, const std::string& port,
+                 connection_strategy strategy = connection_strategy::none);
 
   private:
-    // Private member variables and methods
 };
 
-#endif // CLIENT_H
+template <typename T>
+client_interface<T>::client_interface() {}
+
+template <typename T>
+client_interface<T>::client_interface(client_interface&& other) {}
+
+template <typename T>
+client_interface<T>::~client_interface() {}
+
+template <typename T>
+client_interface<T>& client_interface<T>::operator=(client_interface&& other) {}
+
+} // namespace wired
+
+#endif // WIRED_CLIENT_H
+
+} // namespace wired
