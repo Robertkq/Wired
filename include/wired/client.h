@@ -1,14 +1,25 @@
 #ifndef WIRED_CLIENT_H
 #define WIRED_CLIENT_H
 
+#include <wired/message.h>
 #include <wired/types.h>
 
 #include <asio.hpp>
+#include <deque>
 #include <iostream>
+#include <memory>
 
 namespace wired {
 template <typename T>
 class client_interface {
+  public:
+    using message = wired::message<T>;
+    using connection = wired::connection<T>;
+
+  public:
+    virtual void on_message(const message& msg,
+                            std::shared_ptr<connection> conn);
+
   public:
     client_interface();
     client_interface(const client_interface& other) = delete;
@@ -19,9 +30,17 @@ class client_interface {
     client_interface& operator=(client_interface&& other);
 
     bool connect(const std::string& host, const std::string& port,
-                 connection_strategy strategy = connection_strategy::none);
+                 connection_strategy strategy = connection_strategy::once);
+    bool disconnect();
+    bool is_connected() const;
+    bool send(const message& msg,
+              message_strategy strategy = message_strategy::normal);
+
+    void run(run_strategy strategy = run_strategy::non_blocking);
 
   private:
+    std::shared_ptr<connection> connection_;
+    std::deque<message> messages_;
 };
 
 template <typename T>
@@ -35,6 +54,23 @@ client_interface<T>::~client_interface() {}
 
 template <typename T>
 client_interface<T>& client_interface<T>::operator=(client_interface&& other) {}
+
+template <typename T>
+bool client_interface<T>::connect(const std::string& host,
+                                  const std::string& port,
+                                  connection_strategy strategy) {}
+
+template <typename T>
+bool client_interface<T>::disconnect() {}
+
+template <typename T>
+bool client_interface<T>::is_connected() const {}
+
+template <typename T>
+bool client_interface<T>::send(const message& msg, message_strategy strategy) {}
+
+template <typename T>
+void client_interface<T>::run(run_strategy strategy) {}
 
 } // namespace wired
 
