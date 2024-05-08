@@ -4,12 +4,13 @@
 #include <wired/message.h>
 #include <wired/types.h>
 
+namespace wired {
 template <typename T>
 class server_interface {
   public:
-    using message = wired::message<T>;
-    using connection = wired::connection<T>;
-    using connection_ptr = std::shared_ptr<connection>;
+    using message = message<T>;
+    using connection_t = connection<T>;
+    using connection_ptr = std::shared_ptr<connection_t>;
 
   public:
     bool start();
@@ -22,5 +23,6 @@ class server_interface {
     ts_deque<connection_ptr> connections_;
     ts_deque<message> messages_;
 }; // class server_interface
+} // namespace wired
 
 #endif // WIRED_SERVER_H

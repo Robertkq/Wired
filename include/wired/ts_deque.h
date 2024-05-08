@@ -271,6 +271,7 @@ template <typename T>
 void ts_deque<T>::pop_front() {
     std::lock_guard<std::mutex> lock(mutex_);
     deque_.pop_front();
+}
 
 } // namespace wired
 

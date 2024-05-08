@@ -2,6 +2,7 @@
 #define WIRED_CLIENT_H
 
 #include <wired/message.h>
+#include <wired/ts_deque.h>
 #include <wired/types.h>
 
 #include <asio.hpp>
@@ -13,9 +14,9 @@ namespace wired {
 template <typename T>
 class client_interface {
   public:
-    using message = wired::message<T>;
-    using connection = wired::connection<T>;
-    using connection_ptr = connection_ptr;
+    using message = message<T>;
+    using connection_t = connection<T>;
+    using connection_ptr = std::shared_ptr<connection_t>;
 
   public:
     virtual void on_message(const message& msg, connection_ptr conn);
@@ -40,7 +41,7 @@ class client_interface {
 
   private:
     connection_ptr connection_;
-    ts_deque messages_;
+    ts_deque<message> messages_;
 }; // class client_interface
 template <typename T>
 client_interface<T>::client_interface() {}
