@@ -15,10 +15,10 @@ class client_interface {
   public:
     using message = wired::message<T>;
     using connection = wired::connection<T>;
+    using connection_ptr = connection_ptr;
 
   public:
-    virtual void on_message(const message& msg,
-                            std::shared_ptr<connection> conn);
+    virtual void on_message(const message& msg, connection_ptr conn);
 
   public:
     client_interface();
@@ -39,10 +39,9 @@ class client_interface {
     void run(run_strategy strategy = run_strategy::non_blocking);
 
   private:
-    std::shared_ptr<connection> connection_;
-    std::deque<message> messages_;
-};
-
+    connection_ptr connection_;
+    ts_deque messages_;
+}; // class client_interface
 template <typename T>
 client_interface<T>::client_interface() {}
 
@@ -75,5 +74,3 @@ void client_interface<T>::run(run_strategy strategy) {}
 } // namespace wired
 
 #endif // WIRED_CLIENT_H
-
-} // namespace wired
