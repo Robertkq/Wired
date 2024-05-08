@@ -24,6 +24,6 @@ target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
 target_include_directories(unit_tests PRIVATE include)
 
 set_target_properties(unit_tests PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
-  RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}
 )

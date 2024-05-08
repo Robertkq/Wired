@@ -11,6 +11,8 @@ namespace wired {
  * @brief Thread-safe deque implementation
  * This class is a deque wrapper that provides thread-safety
  * use of variadic args to easily mimic deque's interface
+ *
+ * to ensure thread safe iteration over the deque, use the for_each method
  */
 template <typename T>
 class ts_deque {

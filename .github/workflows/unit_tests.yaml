@@ -1,4 +1,5 @@
 name: Unit Tests
+run-name: ${{ github.actor }} is running unit tests 😸
 
 on:
   workflow_dispatch:
@@ -14,8 +15,7 @@ jobs:
         with:
           submodules: recursive
 
-
-      - name: Install dependencies
+      - name: Install Wired
         run: |
           mkdir build && cd build
           cmake ..
