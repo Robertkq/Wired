@@ -26,6 +26,10 @@ enum class run_strategy : uint8_t {
     non_blocking = 1 << 1
 }; // enum class run_strategy
 
+struct selection_tag_0 {};
+struct selection_tag_1 : selection_tag_0 {};
+struct selection_tag_2 : selection_tag_1 {};
+
 } // namespace wired
 
 #endif // WIRED_TYPES_H

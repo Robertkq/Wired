@@ -1,8 +1,8 @@
 #ifdef WIRED_SERVER_H
 #define WIRED_SERVER_H
 
-#include <wired/message.h>
-#include <wired/types.h>
+#include "wired/message.h"
+#include "wired/types.h"
 
 namespace wired {
 template <typename T>
