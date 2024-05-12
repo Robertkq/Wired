@@ -6,7 +6,7 @@
 
 int main() {
 
-    wired::message<some_types> msg;
+    wired::message<some_types> msg(some_types::type1);
 
     std::vector<int> v = {1, 2, 3, 4, 5};
     msg << v;

@@ -4,10 +4,8 @@
 #include "wired/client.h"
 #include "wired/connection.h"
 #include "wired/message.h"
-#include "wired/message_io.h"
 #include "wired/server.h"
 #include "wired/ts_deque.h"
 #include "wired/types.h"
-
 
 #endif // WIRED_H

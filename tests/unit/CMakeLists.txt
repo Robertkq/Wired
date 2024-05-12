@@ -15,9 +15,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-file(GLOB_RECURSE WIRED_PLAYGROUND_SOURCES src/*.cpp)
+file(GLOB_RECURSE UNI_TESTT_SOURCES src/*.cpp)
 
-add_executable(unit_tests ${WIRED_PLAYGROUND_SOURCES})
+add_executable(unit_tests ${UNI_TESTT_SOURCES})
 target_link_libraries(unit_tests PRIVATE Wired)
 target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
 
