@@ -4,6 +4,7 @@
 #include "wired/concepts.h"
 #include "wired/connection.h"
 #include "wired/types.h"
+#include <algorithm>
 #include <memory>
 
 namespace wired {
@@ -65,7 +66,7 @@ class message {
     message& operator<<(U&& data);
 
     template <typename U>
-    message& operator>>(U& data);
+    message& operator>>(U&& data);
 
   private:
     template <typename U>
@@ -79,10 +80,10 @@ class message {
 
     template <typename U>
     void read_selection(U& data, selection_tag_2)
-        requires has_wired_deserializable<T>;
+        requires has_wired_deserializable<U>;
     template <typename U>
     void read_selection(U& data, selection_tag_1)
-        requires std::ranges::range<T>;
+        requires std::ranges::range<U>;
     template <typename U>
     void read_selection(U& data, selection_tag_0);
 
@@ -104,7 +105,7 @@ message<T>& message<T>::operator<<(U&& data) {
 
 template <typename T>
 template <typename U>
-message<T>& message<T>::operator>>(U& data) {
+message<T>& message<T>::operator>>(U&& data) {
     read_selection(std::forward<U>(data), selection_tag_2{});
     sync();
     return *this;
@@ -123,7 +124,6 @@ void message<T>::write_selection(U&& data, selection_tag_2)
     requires has_wired_serializable<U>
 {
     auto& msg = *this;
-    std::cout << "Writing serializable object" << std::endl;
     msg << data.wired_serialize();
 }
 
@@ -141,7 +141,6 @@ void message<T>::write_selection(U&& data, selection_tag_1)
     requires std::ranges::range<U>
 {
     using size_type = typename std::remove_reference_t<U>::size_type;
-    std::cout << "Writing range" << std::endl;
     auto& msg = *this;
     size_type size = std::ranges::size(data);
     for (const auto& item : data) {
@@ -158,36 +157,39 @@ void message<T>::write_selection(U&& data, selection_tag_1)
 template <typename T>
 template <typename U>
 void message<T>::write_selection(U&& data, selection_tag_0) {
-    std::cout << "Writing single object" << std::endl;
     auto& msg = *this;
     auto& msg_vector = msg.body().data();
     auto size = msg_vector.size();
-    msg_vector.resize(size + sizeof(T));
-    std::memcpy(msg_vector.data() + size, &data, sizeof(T));
+    msg_vector.resize(size + sizeof(U));
+    std::memcpy(msg_vector.data() + size, &data, sizeof(U));
 }
 
 template <typename T>
 template <typename U>
 void message<T>::read_selection(U& data, selection_tag_2)
-    requires has_wired_deserializable<T>
+    requires has_wired_deserializable<U>
 {
     std::vector<uint8_t> buffer;
     auto& msg = *this;
     msg >> buffer;
-    data.wired_deserialize(buffer);
+    data.wired_deserialize(std::move(buffer));
 }
 
 template <typename T>
 template <typename U>
 void message<T>::read_selection(U& data, selection_tag_1)
-    requires std::ranges::range<T>
+    requires std::ranges::range<U>
 {
-    std::cout << "Reading range" << std::endl;
+    using value_type = typename U::value_type;
+    using size_type = typename U::size_type;
+
     auto& msg = *this;
-    typename U::size_type size;
+    size_type size;
     msg >> size;
+    data.clear();
+    data.reserve(size);
     for (size_t i = 0; i < size; ++i) {
-        U item;
+        value_type item;
         msg >> item;
         data.push_back(item);
     }
@@ -197,12 +199,10 @@ void message<T>::read_selection(U& data, selection_tag_1)
 template <typename T>
 template <typename U>
 void message<T>::read_selection(U& data, selection_tag_0) {
-    std::cout << "Reading single object" << std::endl;
     auto& msg = *this;
-    auto& msg_vector = msg.body().data();
-    auto size = msg_vector.size();
-    std::memcpy(&data, msg_vector.data() + size - sizeof(T), sizeof(T));
-    msg_vector.resize(size - sizeof(T));
+    auto& vector = msg.body().data();
+    std::memcpy(&data, (vector.data() + vector.size()) - sizeof(U), sizeof(U));
+    vector.resize(vector.size() - sizeof(U));
 }
 
 } // namespace wired

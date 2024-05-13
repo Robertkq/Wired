@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 
 enum class message_type : uint8_t {
