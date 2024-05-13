@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
+
 
 class serializable_only_type {
   public:

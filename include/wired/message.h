@@ -5,7 +5,9 @@
 #include "wired/connection.h"
 #include "wired/types.h"
 #include <algorithm>
+#include <cstring>
 #include <memory>
+
 
 namespace wired {
 

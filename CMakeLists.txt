@@ -8,7 +8,7 @@ add_library(Wired INTERFACE ${HEADERS})
 target_include_directories(Wired INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(Wired INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/asio)
 
-target_compile_features(wired_playground PRIVATE cxx_std_20)
+target_compile_features(Wired INTERFACE cxx_std_20)
 
 install(TARGETS Wired DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
