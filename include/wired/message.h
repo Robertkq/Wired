@@ -2,14 +2,15 @@
 #define WIRED_MESSAGE_H
 
 #include "wired/concepts.h"
-#include "wired/connection.h"
 #include "wired/types.h"
 #include <algorithm>
 #include <cstring>
 #include <memory>
 
-
 namespace wired {
+
+template <typename T>
+class connection;
 
 template <typename T>
 class message_header {
