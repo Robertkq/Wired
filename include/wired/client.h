@@ -32,25 +32,24 @@ class client_interface {
     client_interface& operator=(client_interface&& other);
 
     bool connect(const std::string& host, const std::string& port);
-    bool disconnect();
+    void disconnect();
     bool is_connected() const;
-    bool send(const message_t& msg);
-
-    void run();
+    void send(const message_t& msg);
 
   private:
     connection_ptr connection_;
-    ts_deque<message_t> messages_;
+    ts_deque<message_t> messages_in_;
     asio::io_context context_;
 }; // class client_interface
 
 template <typename T>
-client_interface<T>::client_interface() : connection_(nullptr), messages_() {}
+client_interface<T>::client_interface()
+    : connection_(nullptr), messages_in_() {}
 
 template <typename T>
 client_interface<T>::client_interface(client_interface&& other)
     : connection_(std::move(other.connection_)),
-      messages_(std::move(other.messages_)) {}
+      messages_in_(std::move(other.messages_in_)) {}
 
 template <typename T>
 client_interface<T>::~client_interface() {
@@ -65,7 +64,7 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
     }
 
     connection_ = std::move(other.connection_);
-    messages_ = std::move(other.messages_);
+    messages_in_ = std::move(other.messages_in_);
 
     return *this;
 }
@@ -82,36 +81,32 @@ bool client_interface<T>::connect(const std::string& host,
             resolver.resolve(host, port);
 
         connection_ = std::make_shared<connection_ptr>(
-            context_, asio::ip::tcp::socket(context_), messages_);
+            context_, asio::ip::tcp::socket(context_), messages_in_);
 
-        connection_->connect_server(endpoints);
+        bool connection_result = connection_->connect(endpoints);
+        return connection_result;
+
     } catch (std::exception ec) {
         disconnect();
         return false;
     }
-    return true;
 }
 
 template <typename T>
-bool client_interface<T>::disconnect() {
+void client_interface<T>::disconnect() {
     connection_->disconnect();
     connection_.reset();
 }
 
 template <typename T>
 bool client_interface<T>::is_connected() const {
-    return connection->is_connected();
+    return connection_->is_connected();
 }
 
 template <typename T>
-bool client_interface<T>::send(const message_t& msg) {
-    // connection_->send(msg, )
+void client_interface<T>::send(const message_t& msg) {
+    connection_->send(msg);
 }
-
-template <typename T>
-void client_interface<T>::run(){
-
-};
 
 } // namespace wired
 
