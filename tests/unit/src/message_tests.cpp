@@ -1,7 +1,7 @@
 #include "test_enums.h"
 #include "test_types.h"
+#include "wired.h"
 #include <gtest/gtest.h>
-#include <wired.h>
 
 class message_tests_fixture : public ::testing::Test {
   public:
@@ -17,6 +17,9 @@ class message_tests_fixture : public ::testing::Test {
 };
 
 TEST_F(message_tests_fixture, default_constructor) {
+    msg.id(message_type::single);
+    EXPECT_EQ(msg.id(), message_type::single);
+    EXPECT_EQ(msg.head().id(), message_type::single);
     EXPECT_EQ(msg.from(), nullptr);
     EXPECT_EQ(msg.head().size(), 0);
     EXPECT_EQ(msg.head().timestamp(), 0);
@@ -24,13 +27,16 @@ TEST_F(message_tests_fixture, default_constructor) {
 }
 
 TEST_F(message_tests_fixture, input_single) {
+    msg.id(message_type::single);
     msg << int(42);
+    EXPECT_EQ(msg.head().id(), message_type::single);
     EXPECT_EQ(msg.body().data().size(), sizeof(int));
     EXPECT_EQ(msg.body().data()[0], 42);
     EXPECT_EQ(msg.head().size(), msg.body().data().size());
 }
 
 TEST_F(message_tests_fixture, input_single_multi) {
+    msg.id(message_type::single);
     msg << int(42) << int(43) << int(44);
     EXPECT_EQ(msg.body().data().size(), 3 * sizeof(int));
     EXPECT_EQ(msg.head().size(), msg.body().data().size());
@@ -38,7 +44,9 @@ TEST_F(message_tests_fixture, input_single_multi) {
 
 TEST_F(message_tests_fixture, input_vector) {
     std::vector<int> v = {40, 41, 42, 43, 43};
+    msg.id(message_type::vector);
     msg << v;
+    EXPECT_EQ(msg.id(), message_type::vector);
     EXPECT_EQ(msg.body().data().size(),
               v.size() * sizeof(int) + sizeof(size_t));
 }
@@ -46,8 +54,10 @@ TEST_F(message_tests_fixture, input_vector) {
 TEST_F(message_tests_fixture, input_vector_multi) {
     std::vector<int> v1 = {40, 41, 42, 43, 43};
     std::vector<int> v2 = {50, 51, 52, 53, 53};
+    msg.id(message_type::vector);
     msg << v1;
     msg << v2;
+    EXPECT_EQ(msg.id(), message_type::vector);
     EXPECT_EQ(msg.body().data().size(),
               v1.size() * sizeof(int) + sizeof(size_t) +
                   v2.size() * sizeof(int) + sizeof(size_t));
@@ -56,7 +66,9 @@ TEST_F(message_tests_fixture, input_vector_multi) {
 TEST_F(message_tests_fixture, input_wired_serialize) {
     serializable_only_type sot{42, 43};
     auto reference = sot.wired_serialize();
+    msg.id(message_type::wired_serialize);
     msg << sot;
+    EXPECT_EQ(msg.id(), message_type::wired_serialize);
     EXPECT_EQ(msg.body().data().size(), reference.size() + sizeof(size_t));
 }
 
@@ -65,7 +77,9 @@ TEST_F(message_tests_fixture, input_wired_serialize_multi) {
     serializable_only_type sot2{52, 53};
     auto reference1 = sot1.wired_serialize();
     auto reference2 = sot2.wired_serialize();
+    msg.id(message_type::wired_serialize);
     msg << sot1 << sot2;
+    EXPECT_EQ(msg.id(), message_type::wired_serialize);
     EXPECT_EQ(msg.body().data().size(),
               reference1.size() + reference2.size() + 2 * sizeof(size_t));
 }
@@ -146,4 +160,14 @@ TEST_F(message_tests_fixture, output_wired_serialize_multi) {
     EXPECT_EQ(dot2.factor, 53);
     EXPECT_EQ(msg.body().data().size(), 0);
     EXPECT_EQ(msg.head().size(), 0);
+}
+
+TEST_F(message_tests_fixture, reset) {
+    msg << int(42);
+    msg.reset();
+    EXPECT_EQ(msg.head().id(), message_type::single);
+    EXPECT_EQ(msg.from(), nullptr);
+    EXPECT_EQ(msg.head().size(), 0);
+    EXPECT_EQ(msg.head().timestamp(), 0);
+    EXPECT_EQ(msg.body().data().size(), 0);
 }

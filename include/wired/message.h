@@ -65,6 +65,10 @@ class message {
     const message_body_t& body() const { return body_; }
     message_body_t& body() { return body_; }
 
+    T id() const { return head_.id(); }
+    void id(T id) { head_.id(id); }
+    void reset();
+
     template <typename U>
     message& operator<<(U&& data);
 
@@ -97,6 +101,12 @@ class message {
     message_header_t head_;
     message_body_t body_;
 }; // class message
+
+template <typename T>
+void message<T>::reset() {
+    head_ = message_header<T>();
+    body_.data().clear();
+}
 
 template <typename T>
 template <typename U>

@@ -1,21 +1,21 @@
 #pragma once
 
-#include <cstdint>
-#include <vector>
+#include "wired.h"
 
-enum some_types : uint8_t {
-    type1,
-    type2,
-    type3
+enum class message_type {
+    connect,
+    disconnect,
+    message
 };
 
-class a_type {
+struct client : public wired::client_interface<message_type> {
   public:
-    a_type() = default;
-    a_type(int i) : i(i) {}
-    int i;
+    using message_t = message<T>;
+    using connection_t = connection<T>;
+    using connection_ptr = std::shared_ptr<connection_t>;
 
-    std::vector<uint8_t> wired_serialize() {
-        return std::vector<uint8_t>{uint8_t(i)};
-    }
+  public:
+    void on_message(message_t& msg, connection_ptr conn) override{
+
+    };
 };

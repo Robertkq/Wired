@@ -15,11 +15,15 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-file(GLOB_RECURSE UNIT_TEST_SOURCES src/*.cpp)
+file(GLOB_RECURSE UNIT_TEST_SOURCES 
+    "src/main.cpp"
+    "src/message_tests.cpp"
+    "src/connection_tests.cpp"
+    "src/sanity.cpp")
 
 add_executable(unit_tests ${UNIT_TEST_SOURCES})
 target_link_libraries(unit_tests PRIVATE Wired)
-target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
+target_link_libraries(unit_tests PRIVATE GTest::gtest)
 
 target_include_directories(unit_tests PRIVATE include)
 
@@ -27,3 +31,7 @@ set_target_properties(unit_tests PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}
   RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}
 )
+
+if(WIN32)
+    target_compile_definitions(unit_tests PRIVATE _WIN32_WINNT=0x0601)
+endif()
