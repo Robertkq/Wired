@@ -19,10 +19,11 @@ file(GLOB_RECURSE UNIT_TEST_SOURCES
     "src/sanity.cpp")
 
 add_executable(unit_tests ${UNIT_TEST_SOURCES})
-target_link_libraries(unit_tests PRIVATE Wired)
 target_link_libraries(unit_tests PRIVATE GTest::gtest)
 
 target_include_directories(unit_tests PRIVATE include)
+target_include_directories(unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../include)
+target_include_directories(unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../vendor/asio/asio/include)
 
 set_target_properties(unit_tests PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}

@@ -15,17 +15,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Wired
+      - name: Install GCC 13
         run: |
-          mkdir build && cd build
-          cmake ..
-          cmake --install . --config release --prefix install
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
       - name: Build tests
         run: |
           cd tests/unit
           mkdir build && cd build
-          cmake -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install" ..
+          cmake ..
           cmake --build . --config release --parallel
 
       - name: Run unit tests
