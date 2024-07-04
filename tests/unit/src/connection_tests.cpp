@@ -93,6 +93,28 @@ class connection_tests_fixture : public ::testing::Test {
 TEST_F(connection_tests_fixture, connected) {
     EXPECT_EQ(server_conn->is_connected(), true);
     EXPECT_EQ(client_conn->is_connected(), true);
+    EXPECT_EQ(server_messages.size(), 0);
+    EXPECT_EQ(client_messages.size(), 0);
 }
 
-TEST_F(connection_tests_fixture, send) {}
+TEST_F(connection_tests_fixture, disconnect_server) {
+    server_conn->disconnect();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_EQ(server_conn->is_connected(), false);
+    EXPECT_EQ(client_conn->is_connected(), false);
+}
+
+TEST_F(connection_tests_fixture, disconnect_client) {
+    client_conn->disconnect();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_EQ(server_conn->is_connected(), false);
+    EXPECT_EQ(client_conn->is_connected(), false);
+}
+
+// TEST_F(connection_tests_fixture, send) {
+//     EXPECT_EQ(server_messages.size(), 0);
+//     message_t msg(message_type::single);
+//     msg << int(6);
+//     client_conn->send(msg);
+//     std::this_thread::sleep_for(std::chrono::milliseconds(500));
+// }
