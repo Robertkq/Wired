@@ -20,7 +20,7 @@ class client_interface {
     using connection_ptr = std::shared_ptr<connection_t>;
 
   public:
-    virtual void on_message(const message_t& msg, connection_ptr conn);
+    virtual void on_message(message_t& msg, connection_ptr conn);
 
   public:
     client_interface();

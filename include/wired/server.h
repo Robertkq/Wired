@@ -54,14 +54,19 @@ bool server_interface<T>::start(const std::string& port) {
 
 template <typename T>
 void server_interface<T>::wait_for_client_chain() {
-    asio::async_accept(listener_, [this](asio::error_code ec) {
-        if (ec) {
+    asio::async_accept(
+        listener_, [this](asio::error_code ec, asio::ip::tcp::socket socket) {
+            if (ec) {
 
-        } else {
-            connection_ptr new_connection =
-                std::make_shared<connection_t>(context_);
-        }
-    })
+            } else {
+                connection_ptr new_connection =
+                    std::make_shared<connection_t>(context_);
+
+                std::cout << socket.remote_endpoint() << " connected!\n";
+
+                connections_.push_back(new_connection);
+            }
+        })
 }
 
 } // namespace wired
