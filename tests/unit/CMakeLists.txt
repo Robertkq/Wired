@@ -7,29 +7,23 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-message("hello:")
-message(${CMAKE_SOURCE_DIR})
-message(${CMAKE_CURRENT_SOURCE_DIR})
-message(${CMAKE_CURRENT_BINARY_DIR})
-
-file(GLOB_RECURSE UNIT_TEST_SOURCES 
+set(UNIT_TEST_SOURCES 
     "src/main.cpp"
     "src/message_tests.cpp"
     "src/connection_tests.cpp"
     "src/sanity.cpp")
 
-add_executable(unit_tests ${UNIT_TEST_SOURCES})
-target_link_libraries(unit_tests PRIVATE GTest::gtest)
+add_executable(unit ${UNIT_TEST_SOURCES})
+target_link_libraries(unit PRIVATE GTest::gtest)
+target_link_libraries(unit PRIVATE Wired)
 
-target_include_directories(unit_tests PRIVATE include)
-target_include_directories(unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../include)
-target_include_directories(unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/../../vendor/asio/asio/include)
+target_include_directories(unit PRIVATE include)
 
-set_target_properties(unit_tests PROPERTIES
+set_target_properties(unit PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
   RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 if(WIN32)
-    target_compile_definitions(unit_tests PRIVATE _WIN32_WINNT=0x0601)
+    target_compile_definitions(unit PRIVATE _WIN32_WINNT=0x0601)
 endif()

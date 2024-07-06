@@ -27,13 +27,12 @@ jobs:
 
       - name: Build tests
         run: |
-          cd tests/unit
           mkdir build && cd build
-          cmake ..
-          cmake --build . --config release --parallel
+          cmake .. -DUNIT_TESTS=ON
+          cmake --build . --parallel 
 
       - name: Run unit tests
         run: |
-          cd tests/unit/build
-          ./unit_tests
+          cd build/tests/unit
+          ./unit
           

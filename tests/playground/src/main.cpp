@@ -1,7 +1,3 @@
-#include "playground_types.h"
-#include <iostream>
-#include <thread>
-#include <vector>
-#include <wired.h>
+#include "Wired.h"
 
 int main() { return 0; }
