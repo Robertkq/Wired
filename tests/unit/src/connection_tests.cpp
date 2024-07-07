@@ -29,20 +29,22 @@ class connection_tests_fixture : public ::testing::Test {
         asio::ip::tcp::endpoint server_endpoint = listener.local_endpoint();
         asio::error_code ec;
 
-        LOG_MESSAGE(LOG_INFO, "Test server on {}:{}",
-                    server_endpoint.address().to_string(),
-                    server_endpoint.port());
+        WIRED_LOG_MESSAGE(wired::LOG_INFO, "Test server on {}:{}",
+                          server_endpoint.address().to_string(),
+                          server_endpoint.port());
 
         std::promise<void> server_promise;
         std::future<void> server_future = server_promise.get_future();
 
         listener.async_accept(server_socket, [&](asio::error_code ec) {
             if (!ec) {
-                LOG_MESSAGE(LOG_INFO, "Server accepted connection");
+                WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                                  "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
                     io_context, std::move(server_socket), server_messages);
             } else {
-                LOG_MESSAGE(LOG_ERROR, "Server failed to accept connection");
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Server failed to accept connection");
             }
             server_promise.set_value();
         });
@@ -51,24 +53,27 @@ class connection_tests_fixture : public ::testing::Test {
         std::future<void> client_future = client_promise.get_future();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        LOG_MESSAGE(LOG_INFO, "Client trying to connect to 127.0.0.1:{}",
-                    server_endpoint.port());
+        WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                          "Client trying to connect to 127.0.0.1:{}",
+                          server_endpoint.port());
         client_socket.async_connect(
             asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"),
                                     server_endpoint.port()),
             [&](asio::error_code ec) {
                 if (!ec) {
-                    LOG_MESSAGE(LOG_INFO, "Client connected to server");
+                    WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                                      "Client connected to server");
                     client_conn = std::make_shared<connection_t>(
                         io_context, std::move(client_socket), client_messages);
                 } else {
-                    LOG_MESSAGE(LOG_ERROR,
-                                "Client failed to connect to server");
+                    WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                      "Client failed to connect to server");
                 }
                 client_promise.set_value();
             });
 
-        LOG_MESSAGE(LOG_INFO, "Waiting for server and client to connect");
+        WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                          "Waiting for server and client to connect");
         server_future.wait();
         client_future.wait();
 
@@ -97,19 +102,19 @@ TEST_F(connection_tests_fixture, connected) {
     EXPECT_EQ(client_messages.size(), 0);
 }
 
-// TEST_F(connection_tests_fixture, disconnect_server) {
-//     server_conn->disconnect();
-//     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//     EXPECT_EQ(server_conn->is_connected(), false);
-//     EXPECT_EQ(client_conn->is_connected(), false);
-// }
+TEST_F(connection_tests_fixture, disconnect_server) {
+    server_conn->disconnect();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_EQ(server_conn->is_connected(), false);
+    EXPECT_EQ(client_conn->is_connected(), false);
+}
 
-// TEST_F(connection_tests_fixture, disconnect_client) {
-//     client_conn->disconnect();
-//     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//     EXPECT_EQ(server_conn->is_connected(), false);
-//     EXPECT_EQ(client_conn->is_connected(), false);
-// }
+TEST_F(connection_tests_fixture, disconnect_client) {
+    client_conn->disconnect();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    EXPECT_EQ(server_conn->is_connected(), false);
+    EXPECT_EQ(client_conn->is_connected(), false);
+}
 
 // TEST_F(connection_tests_fixture, send) {
 //     EXPECT_EQ(server_messages.size(), 0);

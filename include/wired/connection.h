@@ -62,8 +62,38 @@ bool connection<T>::send(const message_t& msg) {}
 
 template <typename T>
 void connection<T>::disconnect() {
-    asio::post(io_context_, [this]() { socket_.close(); });
+    if (!socket_.is_open()) {
+        return;
+    }
+    WIRED_LOG_MESSAGE(wired::LOG_DEBUG, "Socket disconnected");
+    asio::post(io_context_, [this]() {
+        asio::error_code ec;
+        socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+        if (ec) {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Socket error while shutting down send/write\n"
+                              "with error code: {}\n"
+                              "and error message: {}",
+                              ec.value(), ec.message());
+            return;
+        }
+        ec.clear();
+        socket_.close(ec);
+        if (ec) {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Socket error while closing\n"
+                              "with error code: {}\n"
+                              "and error message: {}",
+                              ec.value(), ec.message());
+        }
+        WIRED_LOG_MESSAGE(
+            wired::LOG_INFO,
+            "disconnect function token completed! is_open: {} {}",
+            reinterpret_cast<uintptr_t>(static_cast<const void*>(this)),
+            is_connected());
+    });
     connected_ = false;
+    WIRED_LOG_MESSAGE(wired::LOG_INFO, "disconnect function completed!");
 }
 
 } // namespace wired
