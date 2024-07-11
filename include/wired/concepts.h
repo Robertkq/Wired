@@ -20,6 +20,14 @@ template <typename T>
 concept is_wired_serializable =
     has_wired_serializable<T> && has_wired_deserializable<T>;
 
+template <typename T>
+class message;
+
+template <typename Callable, typename T>
+concept message_handler = requires(Callable c, message<T>& msg) {
+    { c(msg) } -> std::same_as<void>;
+};
+
 } // namespace wired
 
 #endif

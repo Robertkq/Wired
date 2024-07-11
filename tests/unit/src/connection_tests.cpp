@@ -12,8 +12,7 @@ class connection_tests_fixture : public ::testing::Test {
   public:
     connection_tests_fixture()
         : io_context(), server_socket(io_context), client_socket(io_context),
-          server_messages(), client_messages(), server_conn(nullptr),
-          client_conn(nullptr), idle_work(io_context),
+          server_conn(nullptr), client_conn(nullptr), idle_work(io_context),
           io_thread([&]() { io_context.run(); }) {}
 
     ~connection_tests_fixture() {
@@ -41,7 +40,7 @@ class connection_tests_fixture : public ::testing::Test {
                 WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                   "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
-                    io_context, std::move(server_socket), server_messages);
+                    io_context, std::move(server_socket));
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "Server failed to accept connection");
@@ -64,7 +63,7 @@ class connection_tests_fixture : public ::testing::Test {
                     WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                       "Client connected to server");
                     client_conn = std::make_shared<connection_t>(
-                        io_context, std::move(client_socket), client_messages);
+                        io_context, std::move(client_socket));
                 } else {
                     WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                       "Client failed to connect to server");
@@ -87,8 +86,6 @@ class connection_tests_fixture : public ::testing::Test {
     asio::io_context io_context;
     asio::ip::tcp::socket server_socket;
     asio::ip::tcp::socket client_socket;
-    wired::ts_deque<message_t> server_messages;
-    wired::ts_deque<message_t> client_messages;
     connection_ptr server_conn;
     connection_ptr client_conn;
     asio::io_context::work idle_work;
@@ -98,28 +95,34 @@ class connection_tests_fixture : public ::testing::Test {
 TEST_F(connection_tests_fixture, connected) {
     EXPECT_EQ(server_conn->is_connected(), true);
     EXPECT_EQ(client_conn->is_connected(), true);
-    EXPECT_EQ(server_messages.size(), 0);
-    EXPECT_EQ(client_messages.size(), 0);
 }
 
 TEST_F(connection_tests_fixture, disconnect_server) {
     server_conn->disconnect();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     EXPECT_EQ(server_conn->is_connected(), false);
     EXPECT_EQ(client_conn->is_connected(), false);
 }
 
 TEST_F(connection_tests_fixture, disconnect_client) {
     client_conn->disconnect();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     EXPECT_EQ(server_conn->is_connected(), false);
     EXPECT_EQ(client_conn->is_connected(), false);
 }
 
-// TEST_F(connection_tests_fixture, send) {
-//     EXPECT_EQ(server_messages.size(), 0);
-//     message_t msg(message_type::single);
-//     msg << int(6);
-//     client_conn->send(msg);
-//     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-// }
+TEST_F(connection_tests_fixture, client_send) {
+    message_t msg(message_type::single);
+    msg << int(6);
+    client_conn->send(msg);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_GT(server_conn->incoming_messages_count(), 0);
+}
+
+TEST_F(connection_tests_fixture, server_send) {
+    message_t msg(message_type::single);
+    msg << int(6);
+    server_conn->send(msg);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_GT(client_conn->incoming_messages_count(), 0);
+}
