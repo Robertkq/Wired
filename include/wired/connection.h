@@ -51,6 +51,7 @@ class connection {
     ts_deque<message_t> incoming_messages_;
     message_t aux_message_;
     bool connected_;
+    std::function<void(message_t&)> message_handler_callback;
 };
 
 template <typename T>
@@ -269,6 +270,142 @@ void connection<T>::append_finished_message() {
                       aux_message_.body().data().size());
     incoming_messages_.emplace_back(std::move(aux_message_));
     aux_message_.reset();
+    read_header();
+}
+
+template <typename T>
+void connection<T>::process_incoming_messages(std::size_t count) {
+    while (count > 0) {
+        message_t& msg = incoming_messages_.pop_front();
+        message_handler_callback(msg);
+        --count;
+    }
+}
+
+template <typename T>
+template <typename Callable>
+void connection<T>::set_message_handler(Callable handle)
+    requires message_handler<Callable>
+{
+    message_handler_callback = handle;
+}
+
+template <typename T>
+std::size_t connection<T>::incoming_messages_count() const {
+    return incoming_messages_.size();
+}
+
+template <typename T>
+std::size_t connection<T>::outgoing_messages_count() const {
+    return outgoing_messages_.size();
+}
+
+template <typename T>
+void connection<T>::read_header() {
+    socket_.async_read_some(
+        asio::buffer(&(aux_message_.head()), sizeof(message_header<T>)),
+        [this](const asio::error_code& error, std::size_t bytes_transferred) {
+            if (error) {
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Error while reading header\n"
+                                  "with error code: {}\n"
+                                  "and error message: {}",
+                                  error.value(), error.message());
+                disconnect();
+                return;
+            }
+            WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                              "Read {} bytes out of expected {} of header",
+                              bytes_transferred, sizeof(message_header<T>));
+            if (aux_message_.head().size() > 0) {
+                aux_message_.body().data().resize(aux_message_.head().size());
+                read_body();
+            } else {
+                append_finished_message(aux_message_);
+            }
+        });
+}
+
+template <typename T>
+void connection<T>::read_body() {
+    socket_.async_read_some(
+        asio::buffer(&(aux_message_.body().data().data()),
+                     aux_message_.body().data().size()),
+        [this](const asio::error_code& error, std::size_t bytes_transferred) {
+            if (error) {
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Error while reading body\n"
+                                  "with error code: {}\n"
+                                  "and error message: {}",
+                                  error.value(), error.message());
+                disconnect();
+                return;
+            }
+            WIRED_LOG_MESSAGE(
+                wired::LOG_DEBUG, "Read {} bytes out of expected {} of body",
+                bytes_transferred, aux_message_.body().data().size());
+
+            append_finished_message(aux_message_);
+        });
+}
+
+template <typename T>
+void connection<T>::write_header() {
+    socket_.async_write_some(
+        asio::buffer(&(outgoing_messages_.front().head()),
+                     sizeof(message_header<T>)),
+        [this](const asio::error_code& error, std::size_t bytes_transferred) {
+            if (error) {
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Error while writing header\n"
+                                  "with error code: {}\n"
+                                  "and error message: {}",
+                                  error.value(), error.message());
+                disconnect();
+                return;
+            }
+            message& msg = outgoing_messages_.front();
+            WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                              "Wrote {} bytes out of expected {} of header",
+                              bytes_transferred, sizeof(message_header<T>));
+            if (msg.head().size() > 0) {
+                write_body();
+            } else if (outgoing_messages_.size() > 0) {
+                outgoing_messages_.pop_front();
+                write_header();
+            }
+        });
+}
+
+template <typename T>
+void connection<T>::write_body() {
+    socket_.async_write_some(
+        asio::buffer(&(outgoing_messages_.front().body().data().data(),
+                       outgoing_messages_.front().head().size())),
+        [this](const asio::error_code& error, std::size_t bytes_transferred) {
+            if (error) {
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Error while writing body\n"
+                                  "with error code: {}\n"
+                                  "and error message: {}",
+                                  error.value(), error.message());
+                disconnect();
+                return;
+            }
+            message msg = std::move(outgoing_messages_.pop_front());
+            WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                              "Wrote {} bytes out of expected {} of body",
+                              bytes_transferred, msg.head().size());
+            if (outgoing_messages_.size() > 0) {
+                write_header();
+            }
+        });
+}
+
+template <typename T>
+void connection<T>::append_finished_message(message_t& msg) {
+    outgoing_messages_.emplace_back(std::move(msg));
+    msg.reset();
     read_header();
 }
 
