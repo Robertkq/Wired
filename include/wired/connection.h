@@ -21,7 +21,8 @@ class connection {
   public:
     connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket);
     template <typename Callable>
-    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket)
+    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket,
+               Callable callback)
         requires message_handler<Callable, T>;
     connection(const connection& other) = delete;
     connection(connection&& other);
