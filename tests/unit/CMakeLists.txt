@@ -26,4 +26,5 @@ set_target_properties(unit PROPERTIES
 
 if(WIN32)
     target_compile_definitions(unit PRIVATE _WIN32_WINNT=0x0601)
+    target_compile_options(unit PRIVATE /await:strict)
 endif()

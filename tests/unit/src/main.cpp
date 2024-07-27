@@ -8,6 +8,7 @@ int main(int argc, char** argv) {
     parse_args(argc, argv);
 
     int sc = RUN_ALL_TESTS();
+    std::cerr << "Tests exited with code: " << sc << std::endl;
     return sc;
 }
 
@@ -40,6 +41,7 @@ void parse_args(int argc, char** argv) {
                          "all]]\n"
                       << std::endl;
             std::cerr << "Unknown option: " << arg << std::endl;
+            exit(1);
         }
     }
 }

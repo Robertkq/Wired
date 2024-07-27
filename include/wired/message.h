@@ -18,6 +18,12 @@ class message_header {
   public:
     message_header() : id_(), size_(0), timestamp_(0) {}
     message_header(T id) : id_(id), size_(0), timestamp_(0) {}
+    message_header(const message_header& other)
+        : id_(other.id_), size_(other.size_), timestamp_(other.timestamp_) {}
+    message_header(message_header&& other) noexcept;
+
+    message_header& operator=(const message_header& other);
+    message_header& operator=(message_header&& other) noexcept;
 
     T id() const { return id_; }
     uint64_t size() const { return size_; }
@@ -34,16 +40,61 @@ class message_header {
 }; // class message_header
 
 template <typename T>
+message_header<T>::message_header(message_header&& other) noexcept
+    : id_(std::move(other.id_)), size_(std::move(other.size_)),
+      timestamp_(std::move(other.timestamp_)) {
+    other.size_ = 0;
+    other.timestamp_ = 0;
+}
+
+template <typename T>
+message_header<T>& message_header<T>::operator=(const message_header& other) {
+    id_ = other.id_;
+    size_ = other.size_;
+    timestamp_ = other.timestamp_;
+    return *this;
+}
+
+template <typename T>
+message_header<T>&
+message_header<T>::operator=(message_header&& other) noexcept {
+    id_ = std::move(other.id_);
+    size_ = std::move(other.size_);
+    timestamp_ = std::move(other.timestamp_);
+    other.size_ = 0;
+    other.timestamp_ = 0;
+    return *this;
+}
+
+template <typename T>
 class message_body {
   public:
     message_body() : data_() {}
-    // TODO: Add constructors
+    message_body(const message_body& other) : data_(other.data_) {}
+    message_body(message_body&& other) noexcept
+        : data_(std::move(other.data_)) {}
+
+    message_body& operator=(const message_body& other);
+    message_body& operator=(message_body&& other) noexcept;
+
     const std::vector<uint8_t>& data() const { return data_; }
     std::vector<uint8_t>& data() { return data_; }
 
   private:
     std::vector<uint8_t> data_;
 }; // class message_body
+
+template <typename T>
+message_body<T>& message_body<T>::operator=(const message_body& other) {
+    data_ = other.data_;
+    return *this;
+}
+
+template <typename T>
+message_body<T>& message_body<T>::operator=(message_body&& other) noexcept {
+    data_ = std::move(other.data_);
+    return *this;
+}
 
 template <typename T>
 class message {
@@ -58,6 +109,11 @@ class message {
         : from_(from), head_(head), body_(body) {}
     message() : from_(nullptr), head_(), body_() {}
     message(T id) : from_(nullptr), head_(id), body_() {}
+    message(const message& other);
+    message(message&& other) noexcept;
+
+    message& operator=(const message& other);
+    message& operator=(message&& other) noexcept;
 
     const connection_ptr& from() const { return from_; }
     connection_ptr& from() { return from_; }
@@ -102,6 +158,31 @@ class message {
     message_header_t head_;
     message_body_t body_;
 }; // class message
+
+template <typename T>
+message<T>::message(const message& other)
+    : from_(other.from_), head_(other.head_), body_(other.body_) {}
+
+template <typename T>
+message<T>::message(message&& other) noexcept
+    : from_(std::move(other.from_)), head_(std::move(other.head_)),
+      body_(std::move(other.body_)) {}
+
+template <typename T>
+message<T>& message<T>::operator=(const message& other) {
+    from_ = other.from_;
+    head_ = other.head_;
+    body_ = other.body_;
+    return *this;
+}
+
+template <typename T>
+message<T>& message<T>::operator=(message&& other) noexcept {
+    from_ = std::move(other.from_);
+    head_ = std::move(other.head_);
+    body_ = std::move(other.body_);
+    return *this;
+}
 
 template <typename T>
 void message<T>::reset() {

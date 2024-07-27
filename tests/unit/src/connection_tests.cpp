@@ -114,15 +114,16 @@ TEST_F(connection_tests_fixture, disconnect_client) {
 TEST_F(connection_tests_fixture, client_send) {
     message_t msg(message_type::single);
     msg << int(6);
-    client_conn->send(msg);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto future = client_conn->send(msg);
+    // future.wait();
     EXPECT_GT(server_conn->incoming_messages_count(), 0);
 }
 
 TEST_F(connection_tests_fixture, server_send) {
     message_t msg(message_type::single);
     msg << int(6);
-    server_conn->send(msg);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto future = server_conn->send(msg);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    future.wait();
     EXPECT_GT(client_conn->incoming_messages_count(), 0);
 }
