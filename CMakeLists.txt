@@ -14,6 +14,7 @@ option(PLAYGROUND, "Build playground for experimental tests")
 target_include_directories(Wired INTERFACE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(Wired INTERFACE ${CMAKE_SOURCE_DIR}/vendor/asio/asio/include)
 target_compile_features(Wired INTERFACE cxx_std_20)
+target_compile_options(Wired INTERFACE /await:strict)
 
 if(WIN32) 
     target_compile_options(Wired INTERFACE /await:strict)
