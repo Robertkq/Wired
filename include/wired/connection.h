@@ -274,7 +274,7 @@ void connection<T>::write_body() {
                       msg.head().size(), msg.body().data().size());
     socket_.async_write_some(
         asio::buffer(msg.body().data().data(), msg.head().size()),
-        [this, &pair, msg = std::move(msg),
+        [this, &pair, msg = msg,
          promise = std::move(promise)](const asio::error_code& error,
                                        std::size_t bytes_transferred) mutable {
             if (error) {

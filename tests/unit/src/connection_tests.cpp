@@ -3,6 +3,37 @@
 #include "wired.h"
 #include <gtest/gtest.h>
 
+void on_message_received(wired::connection<message_type>& conn,
+                         wired::message<message_type>& msg) {
+    WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                      "Message received with id: {} and size: {}",
+                      msg.head().id(), msg.head().size());
+    switch (msg.head().id()) {
+    case message_type::single: {
+        int value;
+        msg >> value;
+        WIRED_LOG_MESSAGE(wired::LOG_INFO, "Single message received: {}",
+                          value);
+        ASSERT_EQ(value, 6);
+    } break;
+    case message_type::vector: {
+        std::vector<int> values;
+        msg >> values;
+        std::string values_str;
+        for (auto& value : values) {
+            values_str += std::to_string(value) + ", ";
+        }
+        WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                          "Vector message received with size {} and values: {}",
+                          values.size(), values_str);
+        ASSERT_EQ(values.size(), 3);
+        ASSERT_EQ(values[0], 1);
+        ASSERT_EQ(values[1], 2);
+        ASSERT_EQ(values[2], 3);
+    } break;
+    }
+}
+
 class connection_tests_fixture : public ::testing::Test {
   public:
     using message_t = wired::message<message_type>;
@@ -78,6 +109,9 @@ class connection_tests_fixture : public ::testing::Test {
 
         ASSERT_NE(server_conn, nullptr);
         ASSERT_NE(client_conn, nullptr);
+
+        server_conn->set_message_handler(on_message_received);
+        client_conn->set_message_handler(on_message_received);
     }
 
     void TearDown() override {}
@@ -115,7 +149,7 @@ TEST_F(connection_tests_fixture, client_send) {
     message_t msg(message_type::single);
     msg << int(6);
     auto future = client_conn->send(msg);
-    // future.wait();
+    future.wait();
     EXPECT_GT(server_conn->incoming_messages_count(), 0);
 }
 
@@ -123,7 +157,6 @@ TEST_F(connection_tests_fixture, server_send) {
     message_t msg(message_type::single);
     msg << int(6);
     auto future = server_conn->send(msg);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     future.wait();
     EXPECT_GT(client_conn->incoming_messages_count(), 0);
 }
