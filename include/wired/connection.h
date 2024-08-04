@@ -22,10 +22,6 @@ class connection {
 
   public:
     connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket);
-    template <typename Callable>
-    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket,
-               Callable callback)
-        requires message_handler<Callable, T>;
     connection(const connection& other) = delete;
     connection(connection&& other);
     virtual ~connection();
@@ -36,12 +32,7 @@ class connection {
     bool is_connected() const;
     std::future<void> send(const message_t& msg);
     std::future<void> disconnect();
-    void process_incoming_messages(
-        std::size_t n = std::numeric_limits<std::size_t>::max());
 
-    template <typename Callable>
-    void set_message_handler(Callable handle)
-        requires message_handler<Callable>;
     std::size_t incoming_messages_count() const;
     std::size_t outgoing_messages_count() const;
 
@@ -60,29 +51,18 @@ class connection {
     ts_deque<message_t> incoming_messages_;
     message_t aux_message_;
     bool connected_;
-    std::function<void(message_t&)> message_handler_callback;
 };
 
 template <typename T>
 connection<T>::connection(asio::io_context& io_context,
                           asio::ip::tcp::socket&& socket)
     : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
-      incoming_messages_(), aux_message_(), connected_(false),
-      message_handler_callback(nullptr) {
+      incoming_messages_(), aux_message_(), connected_(false) {
     if (!is_connected()) {
         return;
     }
     read_header();
 }
-
-template <typename T>
-template <typename Callable>
-connection<T>::connection(asio::io_context& io_context,
-                          asio::ip::tcp::socket&& socket, Callable callback)
-    requires message_handler<Callable, T>
-    : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
-      incoming_messages_(), aux_message_(), connected_(false),
-      message_handler_callback(callback) {}
 
 template <typename T>
 connection<T>::~connection() {}
@@ -148,24 +128,6 @@ std::future<void> connection<T>::disconnect() {
     });
     WIRED_LOG_MESSAGE(wired::LOG_INFO, "disconnect function completed!");
     return future;
-}
-
-template <typename T>
-void connection<T>::process_incoming_messages(std::size_t count) {
-    while (count > 0) {
-        message_t& msg = incoming_messages_.front();
-        incoming_messages_.pop_front();
-        message_handler_callback(msg);
-        --count;
-    }
-}
-
-template <typename T>
-template <typename Callable>
-void connection<T>::set_message_handler(Callable handle)
-    requires message_handler<Callable>
-{
-    message_handler_callback = handle;
 }
 
 template <typename T>
