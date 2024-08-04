@@ -20,8 +20,12 @@ class server_interface {
     bool start(const std::string& port);
     bool stop();
 
+    bool is_listening();
+
     bool send(connection_ptr conn, const message& msg,
               message_strategy strategy = message_strategy::normal);
+
+    bool send_all(connection_ptr ignore) bool update();
 
   private:
     void wait_for_client_chain();
@@ -32,42 +36,6 @@ class server_interface {
     ts_deque<connection_ptr> connections_;
     ts_deque<message> messages_;
 }; // class server_interface
-
-template <typename T>
-server_interface<T>::server_interface()
-    : context_(), listener_(context_), connections_(), messages_() {}
-
-template <typename T>
-bool server_interface<T>::start(const std::string& port) {
-    try {
-        asio::ip::tcp::endpoint myself(asio::ip::tcp::v4(), std::stoi(port));
-        listener_.open(myself.protocol());
-        listener_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-        listener_.bind(myself);
-        listener_.listen();
-        wait_for_client_chain();
-        return true;
-    } catch (const std::exception& e) {
-        return false;
-    }
-}
-
-template <typename T>
-void server_interface<T>::wait_for_client_chain() {
-    asio::async_accept(
-        listener_, [this](asio::error_code ec, asio::ip::tcp::socket socket) {
-            if (ec) {
-
-            } else {
-                connection_ptr new_connection =
-                    std::make_shared<connection_t>(context_);
-
-                std::cout << socket.remote_endpoint() << " connected!\n";
-
-                connections_.push_back(new_connection);
-            }
-        })
-}
 
 } // namespace wired
 
