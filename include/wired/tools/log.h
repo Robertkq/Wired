@@ -7,6 +7,8 @@
 #include <iostream>
 #include <mutex>
 
+namespace wired {
+
 enum log_level {
     LOG_DISABLE = 0,
     LOG_DEBUG = 1,
@@ -23,10 +25,10 @@ inline log_level current_lvl = LOG_DISABLE;
 
 inline std::mutex log_mutex;
 
-#define LOG_LEVEL(lvl) current_lvl = lvl;
+#define WIRED_LOG_LEVEL(lvl) wired::current_lvl = lvl;
 
-#define LOG_MESSAGE(lvl, msg, ...)                                             \
-    log_message_function(lvl, __FILE__, __LINE__, msg, ##__VA_ARGS__)
+#define WIRED_LOG_MESSAGE(lvl, msg, ...)                                       \
+    wired::log_message_function(lvl, __FILE__, __LINE__, msg, ##__VA_ARGS__)
 
 template <typename... Args>
 void log_message_function(log_level lvl, const char* file, int line,
@@ -39,5 +41,7 @@ void log_message_function(log_level lvl, const char* file, int line,
         std::cerr << std::endl;
     }
 }
+
+} // namespace wired
 
 #endif // WIRED_TOOLS_LOG_H
