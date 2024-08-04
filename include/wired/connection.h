@@ -50,7 +50,6 @@ class connection {
     ts_deque<message_t> incoming_messages_;
     message_t aux_message_;
     bool connected_;
-    std::function<void(message_t&)> message_handler_callback;
 };
 
 template <typename T>
