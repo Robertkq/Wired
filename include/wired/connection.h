@@ -24,7 +24,7 @@ class connection {
     connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket);
     connection(const connection& other) = delete;
     connection(connection&& other);
-    virtual ~connection();
+    ~connection();
 
     connection& operator=(const connection&& other) = delete;
     connection& operator=(connection&& other);
@@ -49,14 +49,13 @@ class connection {
     ts_deque<std::pair<message_t, std::promise<void>>> outgoing_messages_;
     ts_deque<message_t> incoming_messages_;
     message_t aux_message_;
-    bool connected_;
 };
 
 template <typename T>
 connection<T>::connection(asio::io_context& io_context,
                           asio::ip::tcp::socket&& socket)
     : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
-      incoming_messages_(), aux_message_(), connected_(false) {
+      incoming_messages_(), aux_message_() {
     if (!is_connected()) {
         return;
     }
@@ -64,7 +63,19 @@ connection<T>::connection(asio::io_context& io_context,
 }
 
 template <typename T>
-connection<T>::~connection() {}
+connection<T>::connection(connection&& other)
+    : io_context_(std::move(other.io_context_)),
+      socket_(std::move(other.socket_)),
+      outgoing_messages_(std::move(other.outgoing_messages_)),
+      incoming_messages_(std::move(other.incoming_messages_)),
+      aux_message_(std::move(other.aux_message_)) {}
+
+template <typename T>
+connection<T>::~connection() {
+    if (is_connected()) {
+        disconnect();
+    }
+}
 
 template <typename T>
 bool connection<T>::is_connected() const {
@@ -75,6 +86,10 @@ template <typename T>
 std::future<void> connection<T>::send(const message_t& msg) {
     std::promise<void> promise;
     std::future<void> future = promise.get_future();
+    if (!is_connected()) {
+        promise.set_value();
+        return future;
+    }
     asio::post(io_context_, [this, msg = std::move(msg),
                              promise = std::move(promise)]() mutable {
         bool writing = !this->outgoing_messages_.empty();
