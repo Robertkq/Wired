@@ -25,7 +25,8 @@ class server_interface {
     bool send(connection_ptr conn, const message& msg,
               message_strategy strategy = message_strategy::normal);
 
-    bool send_all(connection_ptr ignore) bool update();
+    bool send_all(connection_ptr ignore);
+    bool update();
 
   private:
     void wait_for_client_chain();
