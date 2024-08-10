@@ -19,6 +19,10 @@ if(WIN32)
     target_compile_options(Wired INTERFACE /await:strict)
 endif()
 
+if(WIN32) 
+    target_compile_options(Wired INTERFACE /await:strict)
+endif()
+
 if(UNIT_TESTS)
     add_subdirectory(${CMAKE_SOURCE_DIR}/tests/unit)
 endif()
