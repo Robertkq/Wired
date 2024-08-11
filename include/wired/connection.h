@@ -15,6 +15,8 @@
 
 namespace wired {
 
+inline uint64_t connection_incrementor{1};
+
 template <typename T>
 class connection {
   public:
@@ -59,13 +61,14 @@ class connection {
     ts_deque<std::pair<message_t, std::promise<void>>> outgoing_messages_;
     ts_deque<message_t> incoming_messages_;
     message_t aux_message_;
+    uint64_t id_;
 };
 
 template <typename T>
 connection<T>::connection(asio::io_context& io_context,
                           asio::ip::tcp::socket&& socket)
     : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
-      incoming_messages_(), aux_message_() {
+      incoming_messages_(), aux_message_(), id_(connection_incrementor++) {
     if (!is_connected()) {
         return;
     }
@@ -78,7 +81,8 @@ connection<T>::connection(connection&& other)
       socket_(std::move(other.socket_)),
       outgoing_messages_(std::move(other.outgoing_messages_)),
       incoming_messages_(std::move(other.incoming_messages_)),
-      aux_message_(std::move(other.aux_message_)) {}
+      aux_message_(std::move(other.aux_message_)),
+      id_(connection_incrementor++) {}
 
 template <typename T>
 connection<T>::~connection() {
