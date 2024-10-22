@@ -1,0 +1,14 @@
+name: setup-windows-latest
+
+on:
+  workflow_call:
+
+jobs:
+  setup-windows:
+    runs-on: 'windows-latest'
+    
+    steps:
+    - name: Pretty print
+      run: echo "Setting up an windows-latest machine"
+    
+    

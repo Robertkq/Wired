@@ -7,37 +7,20 @@ on:
     types: [opened, reopened, synchronize, labeled, unlabeled]
 
 jobs:
-  setup:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') }}
+  unit-tests:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-unit-tests') }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    uses: ./.github/workflows/setup.yaml
+    uses: ./.github/workflows/unit_tests.yaml
     with:
       os: ${{ matrix.os }}
 
-  #   unit-tests:
-  #   if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-unit-tests') }}
-  #   needs: setup
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest, windows-latest]
-  #   steps:
-  #     - name: Run unit tests
-  #       uses: ./.github/workflows/unit_tests.yaml
-  #       with:
-  #         os: ${{ matrix.os }}
-
-  # code-coverage:
-  #   if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-code-coverage') }}
-  #   needs: unit-tests
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest, windows-latest]
-  #   steps:
-  #     - name: Run code coverage
-  #       uses: ./.github/workflows/code_coverage.yaml
-  #       with:
-  #         os: ${{ matrix.os }}
+  code-coverage:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-code-coverage') }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    uses: ./.github/workflows/code_coverage.yaml
+    with:
+      os: ${{ matrix.os }}
