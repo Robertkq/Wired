@@ -9,11 +9,5 @@ on:
 
 jobs:
   setup:
+    uses: ./.github/workflows/setup-${{ inputs.os }}.yaml
     runs-on: ${{ inputs.os }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: LS
-        run: ls
