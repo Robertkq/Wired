@@ -4,10 +4,11 @@ run-name: ${{ github.actor }}'s PR is getting checked 😸
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 jobs:
   setup:
-    if: github.event.pull_request.labels.*.name != 'skip-checker'
+    if: github.event.pull_request.labels.*.name != 'skip-all'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -22,7 +23,7 @@ jobs:
           os: ${{ matrix.os }}
 
   unit-tests:
-    if: github.event.pull_request.labels.*.name != 'skip-checker' || github.event.pull_request.labels.*.name != 'skip-unit-tests'
+    if: github.event.pull_request.labels.*.name != 'skip-all' || github.event.pull_request.labels.*.name != 'skip-unit-tests'
     needs: setup
     runs-on: ${{ matrix.os }}
     strategy:
@@ -35,7 +36,7 @@ jobs:
           os: ${{ matrix.os }}
 
   code-coverage:
-    if: github.event.pull_request.labels.*.name != 'skip-checker' || github.event.pull_request.labels.*.name != 'skip-code-coverage'
+    if: github.event.pull_request.labels.*.name != 'skip-all' || github.event.pull_request.labels.*.name != 'skip-code-coverage'
     needs: unit-tests
     runs-on: ${{ matrix.os }}
     strategy:
