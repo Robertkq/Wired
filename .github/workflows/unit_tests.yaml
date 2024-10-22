@@ -13,6 +13,7 @@ jobs:
     uses: ./.github/workflows/setup.yaml
     with:
       os: ${{ inputs.os }}
+      
   unit-tests:
     runs-on: ${{ inputs.os }}
 
