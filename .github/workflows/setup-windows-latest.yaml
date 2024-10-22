@@ -8,7 +8,7 @@ jobs:
     runs-on: 'windows-latest'
     
     steps:
-    - name: Pretty print
-      run: echo "Setting up an windows-latest machine"
+      - name: Pretty print
+        run: echo "Setting up an windows-latest machine"
     
     
