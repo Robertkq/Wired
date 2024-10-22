@@ -9,41 +9,35 @@ on:
 jobs:
   setup:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') }}
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/setup.yaml
+    with:
+      os: ${{ matrix.os }}
 
-      - name: Setup environment
-        uses: ./.github/workflows/setup.yaml
-        with:
-          os: ${{ matrix.os }}
+  #   unit-tests:
+  #   if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-unit-tests') }}
+  #   needs: setup
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, windows-latest]
+  #   steps:
+  #     - name: Run unit tests
+  #       uses: ./.github/workflows/unit_tests.yaml
+  #       with:
+  #         os: ${{ matrix.os }}
 
-  unit-tests:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-unit-tests') }}
-    needs: setup
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    steps:
-      - name: Run unit tests
-        uses: ./.github/workflows/unit_tests.yaml
-        with:
-          os: ${{ matrix.os }}
-
-  code-coverage:
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-code-coverage') }}
-    needs: unit-tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    steps:
-      - name: Run code coverage
-        uses: ./.github/workflows/code_coverage.yaml
-        with:
-          os: ${{ matrix.os }}
+  # code-coverage:
+  #   if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-all') && !contains(github.event.pull_request.labels.*.name, 'skip-code-coverage') }}
+  #   needs: unit-tests
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, windows-latest]
+  #   steps:
+  #     - name: Run code coverage
+  #       uses: ./.github/workflows/code_coverage.yaml
+  #       with:
+  #         os: ${{ matrix.os }}

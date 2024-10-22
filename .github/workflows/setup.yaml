@@ -15,5 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: LS
-        run: ls
+      - name: Listing files
+        run: |
+          ls
+          pwd
