@@ -50,6 +50,9 @@ class ts_deque {
     reference operator[](size_type pos);
     const_reference operator[](size_type pos) const;
 
+    iterator begin() { return deque_.begin(); }
+    iterator end() { return deque_.end(); }
+
     template <typename Func>
     void for_each(Func func);
 
@@ -71,6 +74,8 @@ class ts_deque {
     iterator erase(Args&&... args);
     void pop_back();
     void pop_front();
+
+    std::mutex& get_mutex() const { return mutex_; }
 
   private:
     std::deque<T> deque_;

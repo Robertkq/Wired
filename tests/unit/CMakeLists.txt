@@ -11,6 +11,7 @@ set(UNIT_TEST_SOURCES
     "src/main.cpp"
     "src/message_tests.cpp"
     "src/connection_tests.cpp"
+    "src/server_tests.cpp"
     "src/sanity.cpp")
 
 add_executable(unit ${UNIT_TEST_SOURCES})
