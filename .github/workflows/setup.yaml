@@ -8,6 +8,10 @@ on:
         type: string
 
 jobs:
-  setup:
-    uses: ./.github/workflows/setup-${{ inputs.os }}.yaml
-    runs-on: ${{ inputs.os }}
+  setup-ubuntu:
+    if: ${{ inputs.os == 'ubuntu-latest' }}
+    uses: ./.github/workflows/setup-ubuntu-latest.yaml
+
+  setup-windows:
+    if: ${{ inputs.os == 'windows-latest' }}
+    uses: ./.github/workflows/setup-windows-latest.yaml
