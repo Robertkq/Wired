@@ -1,0 +1,30 @@
+name: windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  checkout:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+  setup:
+    needs: checkout
+    uses: ./.github/workflows/windows-setup.yaml
+
+  unit-tests:
+    needs: setup
+    uses: ./.github/workflows/unit_tests.yaml
+    with:
+      os: windows-latest
+
+  # code-coverage:
+  #   runs-on: windows-latest
+  #   needs: unit-tests
+  #   steps:
+  #     - name: Run code coverage
+  #       uses: ./.github/workflows/code_coverage.yaml
