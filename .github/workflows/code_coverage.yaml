@@ -1,20 +1,15 @@
-name: code-coverage
-run-name: ${{ github.actor }} is running code coverage 😸
+# name: code-coverage
+# run-name: ${{ github.actor }} is running code coverage 😸
 
-on:
-  workflow_dispatch:
-  pull_request:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+# on:
+#   workflow_call:
 
-jobs:
-  setup:
-    uses: ./.github/workflows/setup.yaml
-    with:
-      os: ${{ inputs.os }}
+# jobs:
 
-  code-coverage:
-    steps:
-      - name: print hi
-        run: echo hi
+#   code-coverage:
+
+#     steps:
+#       - name: print hi
+#         run: echo hi
 
 
