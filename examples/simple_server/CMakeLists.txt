@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.2)
-project(wired_example VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.27)
+project(simple_server VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -26,3 +26,8 @@ set_target_properties(server PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
 )
+
+if (WIN32)
+    target_compile_definitions(client PRIVATE _WIN32_WINNT=0x0601)
+    target_compile_definitions(server PRIVATE _WIN32_WINNT=0x0601)
+endif()
