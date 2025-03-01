@@ -1,3 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(unit_tests)
+
+set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -14,10 +19,15 @@ set(UNIT_TEST_SOURCES
     "src/sanity.cpp")
 
 add_executable(unit ${UNIT_TEST_SOURCES})
-target_link_libraries(unit PRIVATE GTest::gtest)
-target_link_libraries(unit PRIVATE Wired)
 
-target_include_directories(unit PRIVATE include)
+target_include_directories(unit PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(unit PRIVATE -std=c++20 -pthread -Wall -Wextra -Werror -Wpedantic -fcoroutines)
+target_compile_definitions(unit PRIVATE -DASIO_STANDALONE)
+target_link_libraries(unit PRIVATE GTest::gtest)
+
+find_package(wired REQUIRED)
+
+target_include_directories(unit PRIVATE ${wired_INCLUDE_DIRS})
 
 set_target_properties(unit PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}

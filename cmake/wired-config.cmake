@@ -1,8 +1,8 @@
-file(GLOB_RECURSE HEADERS "include/*.h")
+set(wired_INCLUDE_DIRS 
+"${CMAKE_INSTALL_PREFIX}/wired/include"
+"${CMAKE_INSTALL_PREFIX}/wired/include/asio/include/"
+)
 
-add_library(Wired INTERFACE ${HEADERS})
-
-target_include_directories(Wired INTERFACE ${CMAKE_CURRENT_LIST_DIR}/../include)
-target_include_directories(Wired INTERFACE ${CMAKE_CURRENT_LIST_DIR}/../include/vendor/asio)
+message("wired_INCLUDE_DIRS: ${wired_INCLUDE_DIRS}")
 
 message("Sucessfully added Wired library to project.")
