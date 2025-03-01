@@ -95,9 +95,7 @@ class connection_tests_fixture : public ::testing::Test {
     asio::ip::tcp::socket client_socket;
     connection_ptr server_conn;
     connection_ptr client_conn;
-    ts_deque server_incoming_messages;
-    ts_deque client_incoming_messages;
-    asio::executor_work_guard<asio::io_context::executor_type> idle_work;
+    asio::io_context::work idle_work;
     std::thread io_thread;
 };
 
