@@ -7,26 +7,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Find Wired package
 find_package(Wired REQUIRED)
 
+message("Wired_INCLUDE_DIRS: ${Wired_INCLUDE_DIRS}")
+
 # define client target with Wired as dependency
 add_executable(client src/client.cpp)
-target_link_libraries(client PRIVATE Wired)
 target_include_directories(client PRIVATE include)
 target_include_directories(client PRIVATE ${Wired_INCLUDE_DIRS})
 
-# define server target with Wired as dependency
-add_executable(server src/server.cpp)
-target_link_libraries(server PRIVATE Wired)
-target_include_directories(server PRIVATE include)
-target_include_directories(client PRIVATE ${Wired_INCLUDE_DIRS})
-
 set_target_properties(client PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# define server target with Wired as dependency
+add_executable(server src/server.cpp)
+target_include_directories(server PRIVATE include)
+target_include_directories(server PRIVATE ${Wired_INCLUDE_DIRS})
+
 set_target_properties(server PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
+  RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 if (WIN32)

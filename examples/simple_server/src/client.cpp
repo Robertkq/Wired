@@ -1,31 +1,41 @@
 #include "common.h"
 #include "wired.h"
 
-
 #include <iostream>
 
-class server : public wired::server_interface<message_type> {
-  public:
-    server() : wired::server_interface<message_type>() {}
-    virtual ~server() {}
-
+struct client : wired::client_interface<common_messages> {
+    client() : wired::client_interface<common_messages>() {}
     void on_message(message_t& msg, connection_ptr conn) override {
-        switch (msg.header.type) {
-        case message_type::server_ping: {
-            std::cout << "[" << conn->get_id() << "]: ping\n";
+        switch (msg.id()) {
+        case common_messages::server_ping: {
+            std::cout << "[]: ping\n";
             break;
         }
-        case message_type::client_message: {
-            std::cout << "[" << conn->get_id() << "]: " << msg.body << "\n";
+        case common_messages::client_message: {
+            std::cout << "[]: something \n";
             break;
         }
         default: {
             std::cout << "unhandled message type: "
-                      << static_cast<uint32_t>(msg.header.type) << "\n";
+                      << static_cast<uint32_t>(msg.id()) << "\n";
             break;
         }
         }
     }
 };
 
-int main() { return 0; }
+int main() {
+    WIRED_LOG_LEVEL(wired::log_level::LOG_DEBUG);
+    client simple_client;
+    std::cout << "[client]: starting\n";
+    simple_client.connect("localhost", "60000");
+
+    std::cout << "[client]: running\n";
+    while (true) {
+        simple_client.update();
+    }
+
+    std::cout << "[client]: stopping\n";
+
+    return 0;
+}
