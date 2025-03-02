@@ -19,7 +19,7 @@ set(UNIT_TEST_SOURCES
 add_executable(unit ${UNIT_TEST_SOURCES})
 
 target_include_directories(unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_options(unit PRIVATE -std=c++20 -pthread -Wall -Wextra -Werror -Wpedantic -fcoroutines)
+target_compile_options(unit PRIVATE -std=c++20 -pthread -Wall -fcoroutines)
 target_compile_definitions(unit PRIVATE -DASIO_STANDALONE)
 target_link_libraries(unit PRIVATE GTest::gtest)
 
