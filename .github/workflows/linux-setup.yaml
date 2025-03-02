@@ -20,3 +20,14 @@ jobs:
           sudo apt-get install -y gcc-13 g++-13
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Wired
+        run: |
+          mkdir build && cd build
+          cmake ..
+          sudo cmake --install .

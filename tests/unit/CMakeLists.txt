@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 project(unit_tests)
 
-set(CMAKE_CXX_COMPILER "/usr/bin/g++")
-
 include(FetchContent)
 FetchContent_Declare(
   googletest
