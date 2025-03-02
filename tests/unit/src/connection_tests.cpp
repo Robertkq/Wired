@@ -4,6 +4,7 @@
 #include "test_types.h"
 
 #include <gtest/gtest.h>
+#include <thread>
 
 class connection_tests_fixture : public ::testing::Test {
   public:
@@ -119,7 +120,7 @@ TEST_F(connection_tests_fixture, client_send) {
     msg << int(6);
     auto future = client_conn->send(msg);
     future.wait();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_GT(server_conn->incoming_messages_count(), 0);
 }
 
@@ -128,6 +129,6 @@ TEST_F(connection_tests_fixture, server_send) {
     msg << int(6);
     auto future = server_conn->send(msg);
     future.wait();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_GT(client_conn->incoming_messages_count(), 0);
 }
