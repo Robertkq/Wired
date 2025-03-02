@@ -1,6 +1,8 @@
 name: linux
+run-name: linux ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
 
 on:
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 

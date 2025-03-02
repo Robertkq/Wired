@@ -1,4 +1,5 @@
-name: setup-ubuntu-latest
+name: linux-setup
+run-name: linux-setup ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
 
 on:
   workflow_call:
