@@ -19,7 +19,6 @@ set(UNIT_TEST_SOURCES
 add_executable(unit ${UNIT_TEST_SOURCES})
 
 target_include_directories(unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_options(unit PRIVATE -std=c++20 -pthread -Wall -fcoroutines)
 target_compile_definitions(unit PRIVATE -DASIO_STANDALONE)
 target_link_libraries(unit PRIVATE GTest::gtest)
 
@@ -34,5 +33,7 @@ set_target_properties(unit PROPERTIES
 
 if(WIN32)
     target_compile_definitions(unit PRIVATE _WIN32_WINNT=0x0601)
-    target_compile_options(unit PRIVATE /await:strict)
+    target_compile_options(unit PRIVATE /await:strict /std:c++20 /W4)
+else()
+    target_compile_options(unit PRIVATE -std=c++20 -pthread -Wall -fcoroutines)
 endif()
