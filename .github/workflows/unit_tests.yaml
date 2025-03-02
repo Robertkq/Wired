@@ -12,7 +12,17 @@ jobs:
   unit-tests:
     runs-on: ${{ inputs.os }}
 
+    env:
+      SUDO: ""
+
     steps:
+      - name: print os
+        run: echo "Running on ${{ inputs.os }}"
+
+      - name: Set SUDO for ubuntu-latest
+        if: ${{ inputs.os }} == 'ubuntu-latest'
+        run: echo "SUDO=sudo " >> $GITHUB_ENV
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -20,13 +30,14 @@ jobs:
 
       - name: Install library
         run: |
-          mkdir build && cd build
+          mkdir build
+          cd build
           cmake ..
-          sudo cmake --install .
+          ${{ env.SUDO }} cmake --install .
 
       - name: Build tests
         run: |
-          mkdir build && cd build
+          cd build
           cmake .. -DUNIT_TESTS=ON
           cmake --build . --parallel 
 
