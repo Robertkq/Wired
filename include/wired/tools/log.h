@@ -44,7 +44,7 @@ void log_message_function(log_level lvl, const char* file, int line,
                           const char* msg, Args&&... args) {
     std::lock_guard<std::mutex> lock(log_mutex);
     std::string short_filename = shorten_filename(file);
-    if (current_lvl >= lvl) {
+    if (current_lvl <= lvl && current_lvl != LOG_DISABLE) {
         std::cerr << std::format("[{}:{}][{}]: ", short_filename, line,
                                  log_level_names[static_cast<uint8_t>(lvl)]);
         std::cerr << std::vformat(msg, std::make_format_args(args...));

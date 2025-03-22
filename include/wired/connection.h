@@ -21,7 +21,8 @@ class connection {
     using message_t = message<T>;
 
   public:
-    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket);
+    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket,
+               ts_deque<message_t>& incoming_messages);
     connection(const connection& other) = delete;
     connection(connection&& other);
     ~connection();
@@ -31,7 +32,8 @@ class connection {
 
     bool is_connected() const;
     std::future<void> send(const message_t& msg);
-    std::future<void> disconnect();
+    std::future<bool> connect(asio::ip::tcp::resolver::results_type& endpoints);
+    std::future<bool> disconnect();
     std::size_t incoming_messages_count() const;
     std::size_t outgoing_messages_count() const;
     ts_deque<message_t>& incoming_messages();
@@ -57,15 +59,16 @@ class connection {
     asio::io_context& io_context_;
     asio::ip::tcp::socket socket_;
     ts_deque<std::pair<message_t, std::promise<void>>> outgoing_messages_;
-    ts_deque<message_t> incoming_messages_;
+    ts_deque<message_t>& incoming_messages_;
     message_t aux_message_;
 };
 
 template <typename T>
 connection<T>::connection(asio::io_context& io_context,
-                          asio::ip::tcp::socket&& socket)
+                          asio::ip::tcp::socket&& socket,
+                          ts_deque<message_t>& incoming_messages)
     : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
-      incoming_messages_(), aux_message_() {
+      incoming_messages_(incoming_messages), aux_message_() {
     if (!is_connected()) {
         return;
     }
@@ -113,11 +116,42 @@ std::future<void> connection<T>::send(const message_t& msg) {
 }
 
 template <typename T>
-std::future<void> connection<T>::disconnect() {
-    std::promise<void> promise;
-    std::future<void> future = promise.get_future();
+std::future<bool>
+connection<T>::connect(asio::ip::tcp::resolver::results_type& endpoints) {
+    std::promise<bool> promise;
+    std::future<bool> future = promise.get_future();
+    if (is_connected()) {
+        promise.set_value(false);
+        return future;
+    }
+    asio::async_connect(
+        socket_, endpoints,
+        [this, promise = std::move(promise)](
+            const asio::error_code& error,
+            asio::ip::tcp::endpoint endpoint) mutable {
+            if (error) {
+                WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                  "Error while connecting\n"
+                                  "with error code: {}\n"
+                                  "and error message: {}",
+                                  error.value(), error.message());
+                promise.set_value(false);
+                return;
+            }
+            WIRED_LOG_MESSAGE(wired::LOG_INFO, "Connected to: {}",
+                              endpoint.address().to_string());
+            read_header();
+            promise.set_value(true);
+        });
+    return future;
+}
+
+template <typename T>
+std::future<bool> connection<T>::disconnect() {
+    std::promise<bool> promise;
+    std::future<bool> future = promise.get_future();
     if (!socket_.is_open()) {
-        promise.set_value();
+        promise.set_value(false);
         return future;
     }
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG, "Socket disconnecting...");
@@ -130,7 +164,7 @@ std::future<void> connection<T>::disconnect() {
                               "with error code: {}\n"
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value();
+            promise.set_value(false);
             return;
         }
         error.clear();
@@ -141,14 +175,14 @@ std::future<void> connection<T>::disconnect() {
                               "with error code: {}\n"
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value();
+            promise.set_value(false);
         }
         WIRED_LOG_MESSAGE(
             wired::LOG_INFO,
             "disconnect function token completed! is_open: {} {}",
             reinterpret_cast<uintptr_t>(static_cast<const void*>(this)),
             is_connected());
-        promise.set_value();
+        promise.set_value(true);
     });
     WIRED_LOG_MESSAGE(wired::LOG_INFO, "disconnect function completed!");
     return future;

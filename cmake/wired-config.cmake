@@ -1,4 +1,4 @@
-set(wired_INCLUDE_DIRS 
+set(Wired_INCLUDE_DIRS 
 "${CMAKE_INSTALL_PREFIX}/wired/include"
 "${CMAKE_INSTALL_PREFIX}/wired/include/asio/include/"
 )

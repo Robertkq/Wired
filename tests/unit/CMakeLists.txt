@@ -24,7 +24,7 @@ target_link_libraries(unit PRIVATE GTest::gtest)
 
 find_package(wired REQUIRED)
 
-target_include_directories(unit PRIVATE ${wired_INCLUDE_DIRS})
+target_include_directories(unit PRIVATE ${Wired_INCLUDE_DIRS})
 
 set_target_properties(unit PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}
