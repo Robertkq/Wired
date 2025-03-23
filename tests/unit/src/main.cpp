@@ -4,6 +4,7 @@
 void parse_args(int argc, char** argv);
 
 int main(int argc, char** argv) {
+    WIRED_LOG_LEVEL(wired::LOG_DEBUG);
     ::testing::InitGoogleTest(&argc, argv);
     parse_args(argc, argv);
 

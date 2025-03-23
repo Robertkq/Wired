@@ -108,7 +108,9 @@ std::future<void> connection<T>::send(const message_t& msg) {
         bool writing = !this->outgoing_messages_.empty();
         this->outgoing_messages_.emplace_back(
             std::pair{std::move(msg), std::move(promise)});
+        std::cout << "Added message to outgoing_messages_";
         if (!writing) {
+            std::cout << "Starting to write header";
             this->write_header();
         }
     });
@@ -221,8 +223,8 @@ void connection<T>::read_header_handler(const asio::error_code& error,
                                         std::size_t bytes_transferred) {
     if (error) {
         WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while reading header\n"
-                          "with error code: {}\n"
+                          "Error while reading header"
+                          "with error code: {}"
                           "and error message: {}",
                           error.value(), error.message());
         disconnect();
@@ -254,8 +256,8 @@ void connection<T>::read_body_handler(const asio::error_code& error,
                                       std::size_t bytes_transferred) {
     if (error) {
         WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while reading body\n"
-                          "with error code: {}\n"
+                          "Error while reading body"
+                          "with error code: {}"
                           "and error message: {}",
                           error.value(), error.message());
         disconnect();
@@ -286,8 +288,8 @@ void connection<T>::write_header_handler(const asio::error_code& error,
     auto& promise = pair.second;
     if (error) {
         WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while writing header\n"
-                          "with error code: {}\n"
+                          "Error while writing header"
+                          "with error code: {}"
                           "and error message: {}",
                           error.value(), error.message());
         disconnect();
@@ -330,8 +332,8 @@ void connection<T>::write_body_handler(const asio::error_code& error,
     auto& promise = pair.second;
     if (error) {
         WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while writing body\n"
-                          "with error code: {}\n"
+                          "Error while writing body"
+                          "with error code: {}"
                           "and error message: {}",
                           error.value(), error.message());
         disconnect();

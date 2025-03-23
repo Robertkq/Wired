@@ -11,6 +11,7 @@ class connection_tests_fixture : public ::testing::Test {
     using message_t = wired::message<message_type>;
     using connection_t = wired::connection<message_type>;
     using connection_ptr = std::shared_ptr<connection_t>;
+    using ts_deque = wired::ts_deque<message_t>;
 
   public:
     connection_tests_fixture()
@@ -44,7 +45,8 @@ class connection_tests_fixture : public ::testing::Test {
                 WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                   "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
-                    io_context, std::move(server_socket));
+                    io_context, std::move(server_socket),
+                    server_incoming_messages);
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "Server failed to accept connection");
@@ -67,7 +69,8 @@ class connection_tests_fixture : public ::testing::Test {
                     WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                       "Client connected to server");
                     client_conn = std::make_shared<connection_t>(
-                        io_context, std::move(client_socket));
+                        io_context, std::move(client_socket),
+                        client_incoming_messages);
                 } else {
                     WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                       "Client failed to connect to server");
@@ -92,6 +95,8 @@ class connection_tests_fixture : public ::testing::Test {
     asio::ip::tcp::socket client_socket;
     connection_ptr server_conn;
     connection_ptr client_conn;
+    ts_deque server_incoming_messages;
+    ts_deque client_incoming_messages;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work;
     std::thread io_thread;
 };

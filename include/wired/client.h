@@ -37,25 +37,39 @@ class client_interface {
     void send(const message_t& msg);
 
     bool update();
+    void run();
 
   private:
+    asio::io_context context_;
+    asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
+    std::thread thread_;
     connection_ptr connection_;
     ts_deque<message_t> messages_;
-    asio::io_context context_;
 }; // class client_interface
 
 template <typename T>
 client_interface<T>::client_interface()
-    : connection_(nullptr), messages_(), context_() {}
+    : context_(), idle_work_(asio::make_work_guard(context_)), thread_(),
+      connection_(nullptr), messages_() {
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "client_interface default constructor");
+    thread_ = std::thread(&client_interface<T>::run, this);
+}
 
 template <typename T>
 client_interface<T>::client_interface(client_interface&& other)
-    : connection_(std::move(other.connection_)),
-      messages_(std::move(other.messages_)),
-      context_(std::move(other.context_)) {}
+    : context_(std::move(other.context_)),
+      idle_work_(std::move(other.idle_work_)),
+      thread_(std::move(other.thread_)),
+      connection_(std::move(other.connection_)),
+      messages_(std::move(other.messages_)) {
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "client_interface move constructor");
+}
 
 template <typename T>
 client_interface<T>::~client_interface() {
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "client_interface destructor");
     if (is_connected()) {
         disconnect();
     }
@@ -66,9 +80,11 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
         return *this;
     }
 
+    context_ = std::move(other.context_);
+    idle_work_ = std::move(other.idle_work_);
+    thread_ = std::move(other.thread_);
     connection_ = std::move(other.connection_);
     messages_ = std::move(other.messages_);
-    context_ = std::move(other.context_);
 
     return *this;
 }
@@ -76,11 +92,14 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
 template <typename T>
 std::future<bool> client_interface<T>::connect(const std::string& host,
                                                const std::string& port) {
+
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "client_interface connect");
     if (is_connected()) {
         disconnect();
     }
     try {
         asio::ip::tcp::resolver resolver(context_);
+
         asio::ip::tcp::resolver::results_type endpoints =
             resolver.resolve(host, port);
 
@@ -105,11 +124,15 @@ std::future<bool> client_interface<T>::disconnect() {
 
 template <typename T>
 bool client_interface<T>::is_connected() const {
+    if (!connection_) {
+        return false;
+    }
     return connection_->is_connected();
 }
 
 template <typename T>
 void client_interface<T>::send(const message_t& msg) {
+    std::cout << "client sent message";
     connection_->send(msg);
 }
 
@@ -122,6 +145,11 @@ bool client_interface<T>::update() {
     messages_.pop_front();
     on_message(msg, msg.from());
     return true;
+}
+
+template <typename T>
+void client_interface<T>::run() {
+    context_.run();
 }
 
 } // namespace wired

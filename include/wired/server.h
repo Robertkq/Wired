@@ -32,6 +32,7 @@ class server_interface {
     bool update();
 
   private:
+    void run();
     void wait_for_client_chain();
 
   private:
@@ -53,6 +54,7 @@ bool server_interface<T>::start(const std::string& port) {
     acceptor_.bind(endpoint);
     acceptor_.listen();
     wait_for_client_chain();
+    run();
     return true;
 }
 
@@ -71,7 +73,7 @@ template <typename T>
 bool server_interface<T>::send(connection_ptr conn, const message_t& msg,
                                message_strategy strategy) {
     if (conn->is_connected()) {
-        conn->send(msg, strategy);
+        conn->send(msg);
         return true;
     }
     return false;
@@ -89,18 +91,31 @@ bool server_interface<T>::update() {
 }
 
 template <typename T>
+void server_interface<T>::run() {
+    context_.run();
+}
+
+template <typename T>
 void server_interface<T>::wait_for_client_chain() {
-    acceptor_.async_accept(
-        [this](std::error_code ec, asio::ip::tcp::socket socket) {
-            if (!ec) {
-                connection_ptr conn = std::make_shared<connection_t>(
-                    context_, std::move(socket), messages_);
-                if (conn->is_connected()) {
-                    connections_.push_back(conn);
-                }
+    acceptor_.async_accept([this](std::error_code ec,
+                                  asio::ip::tcp::socket socket) {
+        if (!ec) {
+            WIRED_LOG_MESSAGE(
+                log_level::LOG_DEBUG,
+                "wait_for_client_chain successfully accepted a connection");
+            connection_ptr conn = std::make_shared<connection_t>(
+                context_, std::move(socket), messages_);
+            if (conn->is_connected()) {
+                connections_.push_back(conn);
             }
-            wait_for_client_chain();
-        });
+        } else {
+
+            WIRED_LOG_MESSAGE(
+                log_level::LOG_DEBUG,
+                "wait_for_client_chain didn't succed accepted a connection");
+        }
+        wait_for_client_chain();
+    });
 }
 
 } // namespace wired
