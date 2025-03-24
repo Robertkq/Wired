@@ -34,7 +34,7 @@ class client_interface {
     std::future<bool> connect(const std::string& host, const std::string& port);
     std::future<bool> disconnect();
     bool is_connected() const;
-    void send(const message_t& msg);
+    std::future<bool> send(const message_t& msg);
 
     bool update();
     void run();
@@ -73,7 +73,10 @@ client_interface<T>::~client_interface() {
     if (is_connected()) {
         disconnect();
     }
+    context_.stop();
+    thread_.join();
 }
+
 template <typename T>
 client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
     if (this == &other) {
@@ -93,8 +96,9 @@ template <typename T>
 std::future<bool> client_interface<T>::connect(const std::string& host,
                                                const std::string& port) {
 
-    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "client_interface connect");
     if (is_connected()) {
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Client tried to connect while already connected");
         disconnect();
     }
     try {
@@ -117,8 +121,14 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
 
 template <typename T>
 std::future<bool> client_interface<T>::disconnect() {
+    if (!is_connected()) {
+        std::promise<bool> promise;
+        promise.set_value(false);
+        return promise.get_future();
+    }
     std::future<bool> connection_result = connection_->disconnect();
     connection_.reset();
+    messages_.clear();
     return connection_result;
 }
 
@@ -131,9 +141,14 @@ bool client_interface<T>::is_connected() const {
 }
 
 template <typename T>
-void client_interface<T>::send(const message_t& msg) {
-    std::cout << "client sent message";
-    connection_->send(msg);
+std::future<bool> client_interface<T>::send(const message_t& msg) {
+    if (!is_connected()) {
+        std::promise<bool> promise;
+        promise.set_value(false);
+        return promise.get_future();
+    }
+    std::future<bool> connection_result = connection_->send(msg);
+    return connection_result;
 }
 
 template <typename T>

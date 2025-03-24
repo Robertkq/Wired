@@ -18,6 +18,7 @@ class server_interface {
 
   public:
     server_interface();
+    virtual ~server_interface();
 
   public:
     bool start(const std::string& port);
@@ -37,6 +38,8 @@ class server_interface {
 
   private:
     asio::io_context context_;
+    asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
+    std::thread thread_;
     asio::ip::tcp::acceptor acceptor_;
     ts_deque<connection_ptr> connections_;
     ts_deque<message_t> messages_;
@@ -44,7 +47,15 @@ class server_interface {
 
 template <typename T>
 server_interface<T>::server_interface()
-    : context_(), acceptor_(context_), connections_(), messages_() {}
+    : context_(), idle_work_(asio::make_work_guard(context_)), thread_(),
+      acceptor_(context_), connections_(), messages_() {
+    thread_ = std::thread(&server_interface<T>::run, this);
+}
+
+template <typename T>
+server_interface<T>::~server_interface() {
+    stop();
+}
 
 template <typename T>
 bool server_interface<T>::start(const std::string& port) {
@@ -54,13 +65,13 @@ bool server_interface<T>::start(const std::string& port) {
     acceptor_.bind(endpoint);
     acceptor_.listen();
     wait_for_client_chain();
-    run();
     return true;
 }
 
 template <typename T>
 bool server_interface<T>::stop() {
     context_.stop();
+    thread_.join();
     return true;
 }
 
@@ -72,7 +83,7 @@ bool server_interface<T>::is_listening() {
 template <typename T>
 bool server_interface<T>::send(connection_ptr conn, const message_t& msg,
                                message_strategy strategy) {
-    if (conn->is_connected()) {
+    if (conn && conn->is_connected()) {
         conn->send(msg);
         return true;
     }

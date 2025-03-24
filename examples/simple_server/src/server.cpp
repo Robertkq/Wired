@@ -10,10 +10,11 @@ class server : public wired::server_interface<common_messages> {
 
     void on_message(message_t& msg, connection_ptr conn) override {
         switch (msg.id()) {
-        case common_messages::server_ping: {
-            std::cout << "I got a ping from the client!\n";
+        case common_messages::client_ping: {
+            std::cout << "[server]: I got a ping from the client!\n";
             message_t answer{common_messages::server_ping};
-            send(conn, msg);
+            sleep(1);
+            send(conn, answer);
             break;
         }
         case common_messages::client_message: {

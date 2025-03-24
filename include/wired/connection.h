@@ -11,12 +11,13 @@
 #include <future>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <utility>
 
 namespace wired {
 
 template <typename T>
-class connection {
+class connection : public std::enable_shared_from_this<connection<T>> {
   public:
     using message_t = message<T>;
 
@@ -31,13 +32,20 @@ class connection {
     connection& operator=(connection&& other);
 
     bool is_connected() const;
-    std::future<void> send(const message_t& msg);
+    std::future<bool> send(const message_t& msg);
     std::future<bool> connect(asio::ip::tcp::resolver::results_type& endpoints);
     std::future<bool> disconnect();
     std::size_t incoming_messages_count() const;
     std::size_t outgoing_messages_count() const;
     ts_deque<message_t>& incoming_messages();
     const ts_deque<message_t>& incoming_messages() const;
+
+    bool is_disconnect_error(const asio::error_code& error) {
+        return error == asio::error::eof ||
+               error == asio::error::connection_reset ||
+               error == asio::error::operation_aborted ||
+               error == asio::error::bad_descriptor;
+    }
 
   private:
     void read_header();
@@ -58,7 +66,7 @@ class connection {
   private:
     asio::io_context& io_context_;
     asio::ip::tcp::socket socket_;
-    ts_deque<std::pair<message_t, std::promise<void>>> outgoing_messages_;
+    ts_deque<std::pair<message_t, std::promise<bool>>> outgoing_messages_;
     ts_deque<message_t>& incoming_messages_;
     message_t aux_message_;
 };
@@ -81,7 +89,12 @@ connection<T>::connection(connection&& other)
       socket_(std::move(other.socket_)),
       outgoing_messages_(std::move(other.outgoing_messages_)),
       incoming_messages_(std::move(other.incoming_messages_)),
-      aux_message_(std::move(other.aux_message_)) {}
+      aux_message_(std::move(other.aux_message_)) {
+    if (!is_connected()) {
+        return;
+    }
+    read_header();
+}
 
 template <typename T>
 connection<T>::~connection() {
@@ -96,11 +109,11 @@ bool connection<T>::is_connected() const {
 }
 
 template <typename T>
-std::future<void> connection<T>::send(const message_t& msg) {
-    std::promise<void> promise;
-    std::future<void> future = promise.get_future();
+std::future<bool> connection<T>::send(const message_t& msg) {
+    std::promise<bool> promise;
+    std::future<bool> future = promise.get_future();
     if (!is_connected()) {
-        promise.set_value();
+        promise.set_value(false);
         return future;
     }
     asio::post(io_context_, [this, msg = std::move(msg),
@@ -108,9 +121,10 @@ std::future<void> connection<T>::send(const message_t& msg) {
         bool writing = !this->outgoing_messages_.empty();
         this->outgoing_messages_.emplace_back(
             std::pair{std::move(msg), std::move(promise)});
-        std::cout << "Added message to outgoing_messages_";
+        WIRED_LOG_MESSAGE(wired::LOG_DEBUG, "Message added to queue");
         if (!writing) {
-            std::cout << "Starting to write header";
+            WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                              "Starting sending messages procedure");
             this->write_header();
         }
     });
@@ -162,31 +176,37 @@ std::future<bool> connection<T>::disconnect() {
         socket_.shutdown(asio::ip::tcp::socket::shutdown_both, error);
         if (error) {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                              "Socket error while shutting down send/write\n"
-                              "with error code: {}\n"
+                              "Socket error while shutting down send/write "
+                              "with error code: {} "
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value(false);
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(
+                "Socket shutdown error: " + std::to_string(error.value()) +
+                " - " + error.message())));
             return;
         }
         error.clear();
         socket_.close(error);
         if (error) {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                              "Socket error while closing\n"
-                              "with error code: {}\n"
+                              "Socket error while closing "
+                              "with error code: {} "
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value(false);
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(
+                "Socket close error: " + std::to_string(error.value()) + " - " +
+                error.message())));
+            return;
         }
         WIRED_LOG_MESSAGE(
             wired::LOG_INFO,
-            "disconnect function token completed! is_open: {} {}",
+            "Disconnect completion token complete! addr: {} is_open: {}",
             reinterpret_cast<uintptr_t>(static_cast<const void*>(this)),
             is_connected());
+        outgoing_messages_.clear();
+        incoming_messages_.clear();
         promise.set_value(true);
     });
-    WIRED_LOG_MESSAGE(wired::LOG_INFO, "disconnect function completed!");
     return future;
 }
 
@@ -222,11 +242,19 @@ template <typename T>
 void connection<T>::read_header_handler(const asio::error_code& error,
                                         std::size_t bytes_transferred) {
     if (error) {
-        WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while reading header"
-                          "with error code: {}"
-                          "and error message: {}",
-                          error.value(), error.message());
+        if (is_disconnect_error(error)) {
+            WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                              "Remote disconnected gracefully from read_header "
+                              "with error code: "
+                              "{} and error message: {}",
+                              error.value(), error.message());
+        } else {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Error while reading header "
+                              "with error code: {} "
+                              "and error message: {}",
+                              error.value(), error.message());
+        }
         disconnect();
         return;
     }
@@ -255,11 +283,19 @@ template <typename T>
 void connection<T>::read_body_handler(const asio::error_code& error,
                                       std::size_t bytes_transferred) {
     if (error) {
-        WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while reading body"
-                          "with error code: {}"
-                          "and error message: {}",
-                          error.value(), error.message());
+        if (is_disconnect_error(error)) {
+            WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                              "Remote disconnected gracefully from read_body "
+                              "with error code: "
+                              "{} and error message: {}",
+                              error.value(), error.message());
+        } else {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Error while reading body "
+                              "with error code: {} "
+                              "and error message: {}",
+                              error.value(), error.message());
+        }
         disconnect();
         return;
     }
@@ -287,14 +323,24 @@ void connection<T>::write_header_handler(const asio::error_code& error,
     auto& msg = pair.first;
     auto& promise = pair.second;
     if (error) {
-        WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while writing header"
-                          "with error code: {}"
-                          "and error message: {}",
-                          error.value(), error.message());
+        if (is_disconnect_error(error)) {
+            WIRED_LOG_MESSAGE(
+                wired::LOG_INFO,
+                "Remote disconnected gracefully from write_header "
+                "with error code: "
+                "{} and error message: {}",
+                error.value(), error.message());
+        } else {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Error while writing header "
+                              "with error code: {} "
+                              "and error message: {}",
+                              error.value(), error.message());
+        }
         disconnect();
-        promise.set_value();
-        // TODO: set exception here
+        promise.set_exception(std::make_exception_ptr(std::runtime_error(
+            "Error while writing header: " + std::to_string(error.value()) +
+            " - " + error.message())));
         return;
     }
     WIRED_LOG_MESSAGE(
@@ -305,7 +351,7 @@ void connection<T>::write_header_handler(const asio::error_code& error,
     if (msg.head().size() > 0) {
         write_body();
     } else {
-        promise.set_value();
+        promise.set_value(true);
         outgoing_messages_.pop_front();
         if (outgoing_messages_.size() > 0) {
             write_header();
@@ -331,20 +377,29 @@ void connection<T>::write_body_handler(const asio::error_code& error,
     auto& msg = pair.first;
     auto& promise = pair.second;
     if (error) {
-        WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                          "Error while writing body"
-                          "with error code: {}"
-                          "and error message: {}",
-                          error.value(), error.message());
+        if (is_disconnect_error(error)) {
+            WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                              "Remote disconnected gracefully from write_body "
+                              "with error code: {} "
+                              "and error message: {}",
+                              error.value(), error.message());
+        } else {
+            WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                              "Error while writing body "
+                              "with error code: {} "
+                              "and error message: {}",
+                              error.value(), error.message());
+        }
         disconnect();
-        promise.set_value();
-        // TODO: set exception here
+        promise.set_exception(std::make_exception_ptr(std::runtime_error(
+            "Error while writing body: " + std::to_string(error.value()) +
+            " - " + error.message())));
         return;
     }
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                       "Wrote {} bytes out of expected {} of body successfully",
                       bytes_transferred, msg.head().size());
-    promise.set_value();
+    promise.set_value(true);
     outgoing_messages_.pop_front();
     if (outgoing_messages_.size() > 0) {
         write_header();
@@ -354,9 +409,12 @@ void connection<T>::write_body_handler(const asio::error_code& error,
 template <typename T>
 void connection<T>::append_finished_message() {
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
-                      "Appended message with header size: {} and body size: {}",
+                      "Appended message with header id: {}, header size: {} "
+                      "and body size: {}",
+                      static_cast<unsigned int>(aux_message_.id()),
                       aux_message_.head().size(),
                       aux_message_.body().data().size());
+    aux_message_.from() = this->shared_from_this();
     incoming_messages_.emplace_back(std::move(aux_message_));
     aux_message_.reset();
     read_header();
