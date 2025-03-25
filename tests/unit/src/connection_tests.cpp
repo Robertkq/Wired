@@ -1,18 +1,23 @@
+#include "wired.h"
+
 #include "test_enums.h"
 #include "test_types.h"
-#include "wired.h"
+
 #include <gtest/gtest.h>
+#include <thread>
 
 class connection_tests_fixture : public ::testing::Test {
   public:
     using message_t = wired::message<message_type>;
     using connection_t = wired::connection<message_type>;
     using connection_ptr = std::shared_ptr<connection_t>;
+    using ts_deque = wired::ts_deque<message_t>;
 
   public:
     connection_tests_fixture()
         : io_context(), server_socket(io_context), client_socket(io_context),
-          server_conn(nullptr), client_conn(nullptr), idle_work(io_context),
+          server_conn(nullptr), client_conn(nullptr),
+          idle_work(io_context.get_executor()),
           io_thread([&]() { io_context.run(); }) {}
 
     ~connection_tests_fixture() {
@@ -23,8 +28,8 @@ class connection_tests_fixture : public ::testing::Test {
   protected:
     void SetUp() override {
         asio::ip::tcp::acceptor listener(
-            io_context, asio::ip::tcp::endpoint(
-                            asio::ip::address::from_string("127.0.0.1"), 0));
+            io_context,
+            asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 0));
         asio::ip::tcp::endpoint server_endpoint = listener.local_endpoint();
         asio::error_code ec;
 
@@ -40,7 +45,8 @@ class connection_tests_fixture : public ::testing::Test {
                 WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                   "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
-                    io_context, std::move(server_socket));
+                    io_context, std::move(server_socket),
+                    server_incoming_messages);
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "Server failed to accept connection");
@@ -56,14 +62,15 @@ class connection_tests_fixture : public ::testing::Test {
                           "Client trying to connect to 127.0.0.1:{}",
                           server_endpoint.port());
         client_socket.async_connect(
-            asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"),
+            asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"),
                                     server_endpoint.port()),
             [&](asio::error_code ec) {
                 if (!ec) {
                     WIRED_LOG_MESSAGE(wired::LOG_INFO,
                                       "Client connected to server");
                     client_conn = std::make_shared<connection_t>(
-                        io_context, std::move(client_socket));
+                        io_context, std::move(client_socket),
+                        client_incoming_messages);
                 } else {
                     WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                       "Client failed to connect to server");
@@ -88,7 +95,9 @@ class connection_tests_fixture : public ::testing::Test {
     asio::ip::tcp::socket client_socket;
     connection_ptr server_conn;
     connection_ptr client_conn;
-    asio::io_context::work idle_work;
+    ts_deque server_incoming_messages;
+    ts_deque client_incoming_messages;
+    asio::executor_work_guard<asio::io_context::executor_type> idle_work;
     std::thread io_thread;
 };
 
@@ -116,6 +125,7 @@ TEST_F(connection_tests_fixture, client_send) {
     msg << int(6);
     auto future = client_conn->send(msg);
     future.wait();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_GT(server_conn->incoming_messages_count(), 0);
 }
 
@@ -124,5 +134,6 @@ TEST_F(connection_tests_fixture, server_send) {
     msg << int(6);
     auto future = server_conn->send(msg);
     future.wait();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_GT(client_conn->incoming_messages_count(), 0);
 }

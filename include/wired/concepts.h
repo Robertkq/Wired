@@ -2,6 +2,7 @@
 #define WIRED_CONCEPTS_H
 
 #include <concepts>
+#include <cstdint>
 #include <vector>
 
 namespace wired {

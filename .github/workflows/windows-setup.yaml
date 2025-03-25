@@ -1,4 +1,6 @@
-name: setup-windows-latest
+name: windows-setup
+run-name: windows-setup ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
+
 
 on:
   workflow_call:
@@ -10,5 +12,16 @@ jobs:
     steps:
       - name: Pretty print
         run: echo "Setting up an windows-latest machine"
+
+      # - name: checkout
+      #   uses: actions/checkout@v4
+      #   with:
+      #     submodules: recursive
+
+      # - name: Install Wired
+      #   run: |
+      #     mkdir build && cd build
+      #     cmake ..
+      #     cmake --install .
     
     

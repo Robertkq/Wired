@@ -1,5 +1,5 @@
-name: Unit Tests
-run-name: ${{ github.actor }} is running unit tests 😸
+name: unit-tests
+run-name: unit-tests ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
 
 on:
   workflow_call:
@@ -12,16 +12,32 @@ jobs:
   unit-tests:
     runs-on: ${{ inputs.os }}
 
+    env:
+      SUDO: ""
+
     steps:
+      - name: print os
+        run: echo "Running on ${{ inputs.os }}"
+
+      - name: Set SUDO for ubuntu-latest
+        if: ${{ inputs.os }} == 'ubuntu-latest'
+        run: echo "SUDO=sudo " >> $GITHUB_ENV
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          
+
+      - name: Install library
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          ${{ env.SUDO }} cmake --install .
 
       - name: Build tests
         run: |
-          mkdir build && cd build
+          cd build
           cmake .. -DUNIT_TESTS=ON
           cmake --build . --parallel 
 

@@ -1,6 +1,8 @@
+#include "wired.h"
+
 #include "test_enums.h"
 #include "test_types.h"
-#include "wired.h"
+
 #include <gtest/gtest.h>
 
 class message_tests_fixture : public ::testing::Test {
