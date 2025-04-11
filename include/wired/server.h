@@ -1,8 +1,14 @@
 #ifndef WIRED_SERVER_H
 #define WIRED_SERVER_H
 
+#include <asio.hpp>
+
+#include "wired/connection.h"
 #include "wired/message.h"
+#include "wired/tools/log.h"
+#include "wired/ts_deque.h"
 #include "wired/types.h"
+
 #include <string>
 
 namespace wired {
@@ -29,7 +35,8 @@ class server_interface {
     bool send(connection_ptr conn, const message_t& msg,
               message_strategy strategy = message_strategy::normal);
 
-    bool send_all(connection_ptr ignore);
+    bool send_all(connection_ptr ignore, const message_t& msg,
+                  message_strategy strategy = message_strategy::normal);
     bool update();
 
   private:
@@ -91,6 +98,17 @@ bool server_interface<T>::send(connection_ptr conn, const message_t& msg,
 }
 
 template <typename T>
+bool server_interface<T>::send_all(connection_ptr ignore, const message_t& msg,
+                                   message_strategy strategy) {
+    connections_.for_each([&msg, &ignore, strategy](connection_ptr conn) {
+        if (conn != ignore && conn->is_connected()) {
+            conn->send(msg);
+        }
+    });
+    return true;
+}
+
+template <typename T>
 bool server_interface<T>::update() {
     if (messages_.empty()) {
         return false;
@@ -108,25 +126,25 @@ void server_interface<T>::run() {
 
 template <typename T>
 void server_interface<T>::wait_for_client_chain() {
-    acceptor_.async_accept([this](std::error_code ec,
-                                  asio::ip::tcp::socket socket) {
-        if (!ec) {
-            WIRED_LOG_MESSAGE(
-                log_level::LOG_DEBUG,
-                "wait_for_client_chain successfully accepted a connection");
-            connection_ptr conn = std::make_shared<connection_t>(
-                context_, std::move(socket), messages_);
-            if (conn->is_connected()) {
-                connections_.push_back(conn);
-            }
-        } else {
+    acceptor_.async_accept(
+        [this](std::error_code ec, asio::ip::tcp::socket socket) {
+            if (!ec) {
+                WIRED_LOG_MESSAGE(
+                    log_level::LOG_DEBUG,
+                    "wait_for_client_chain successfully accepted a connection");
+                connection_ptr conn = std::make_shared<connection_t>(
+                    context_, std::move(socket), messages_);
+                if (conn->is_connected()) {
+                    connections_.push_back(conn);
+                }
+            } else {
 
-            WIRED_LOG_MESSAGE(
-                log_level::LOG_DEBUG,
-                "wait_for_client_chain didn't succed accepted a connection");
-        }
-        wait_for_client_chain();
-    });
+                WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                                  "wait_for_client_chain didn't succed "
+                                  "accepted a connection");
+            }
+            wait_for_client_chain();
+        });
 }
 
 } // namespace wired

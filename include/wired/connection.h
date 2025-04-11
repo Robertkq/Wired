@@ -169,7 +169,6 @@ std::future<bool> connection<T>::disconnect() {
         promise.set_value(false);
         return future;
     }
-    WIRED_LOG_MESSAGE(wired::LOG_DEBUG, "Socket disconnecting...");
     asio::post(io_context_, [this, promise = std::move(promise)]() mutable {
         asio::error_code error;
         socket_.shutdown(asio::ip::tcp::socket::shutdown_both, error);
@@ -192,12 +191,9 @@ std::future<bool> connection<T>::disconnect() {
                               error.value(), error.message());
             promise.set_value();
         }
-        WIRED_LOG_MESSAGE(
-            wired::LOG_INFO,
-            "Disconnect completion token complete! addr: {} is_open: {}",
-            reinterpret_cast<uintptr_t>(static_cast<const void*>(this)),
-            is_connected());
-        promise.set_value();
+        outgoing_messages_.clear();
+        incoming_messages_.clear();
+        promise.set_value(true);
     });
     return future;
 }

@@ -1,12 +1,13 @@
 #ifndef WIRED_CLIENT_H
 #define WIRED_CLIENT_H
 
+#include <asio.hpp>
+
 #include <wired/connection.h>
 #include <wired/message.h>
 #include <wired/ts_deque.h>
 #include <wired/types.h>
 
-#include <asio.hpp>
 #include <deque>
 #include <iostream>
 #include <memory>
