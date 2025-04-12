@@ -35,14 +35,12 @@ class client_interface {
     std::future<bool> connect(const std::string& host, const std::string& port);
     std::future<bool> disconnect();
     bool is_connected() const;
-    void send(const message_t& msg);
+    std::future<bool> send(const message_t& msg);
 
     bool update();
     void run();
 
   private:
-    connection_ptr connection_;
-    ts_deque<message_t> messages_;
     asio::io_context context_;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
     std::thread thread_;
@@ -150,22 +148,6 @@ std::future<bool> client_interface<T>::send(const message_t& msg) {
     }
     std::future<bool> connection_result = connection_->send(msg);
     return connection_result;
-}
-
-template <typename T>
-bool client_interface<T>::update() {
-    if (messages_.empty()) {
-        return false;
-    }
-    message_t msg = messages_.front();
-    messages_.pop_front();
-    on_message(msg, msg.from());
-    return true;
-}
-
-template <typename T>
-void client_interface<T>::run() {
-    context_.run();
 }
 
 template <typename T>

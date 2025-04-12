@@ -32,8 +32,9 @@ class connection : public std::enable_shared_from_this<connection<T>> {
     connection& operator=(connection&& other);
 
     bool is_connected() const;
-    std::future<void> send(const message_t& msg);
-    std::future<void> disconnect();
+    std::future<bool> send(const message_t& msg);
+    std::future<bool> connect(asio::ip::tcp::resolver::results_type& endpoints);
+    std::future<bool> disconnect();
     std::size_t incoming_messages_count() const;
     std::size_t outgoing_messages_count() const;
     ts_deque<message_t>& incoming_messages();
@@ -65,8 +66,8 @@ class connection : public std::enable_shared_from_this<connection<T>> {
   private:
     asio::io_context& io_context_;
     asio::ip::tcp::socket socket_;
-    ts_deque<std::pair<message_t, std::promise<void>>> outgoing_messages_;
-    ts_deque<message_t> incoming_messages_;
+    ts_deque<std::pair<message_t, std::promise<bool>>> outgoing_messages_;
+    ts_deque<message_t>& incoming_messages_;
     message_t aux_message_;
 };
 
@@ -178,7 +179,9 @@ std::future<bool> connection<T>::disconnect() {
                               "with error code: {} "
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value();
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(
+                "Socket shutdown error: " + std::to_string(error.value()) +
+                " - " + error.message())));
             return;
         }
         error.clear();
@@ -189,7 +192,10 @@ std::future<bool> connection<T>::disconnect() {
                               "with error code: {} "
                               "and error message: {}",
                               error.value(), error.message());
-            promise.set_value();
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(
+                "Socket close error: " + std::to_string(error.value()) + " - " +
+                error.message())));
+            return;
         }
         outgoing_messages_.clear();
         incoming_messages_.clear();
