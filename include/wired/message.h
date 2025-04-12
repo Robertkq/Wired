@@ -1,8 +1,12 @@
 #ifndef WIRED_MESSAGE_H
 #define WIRED_MESSAGE_H
 
+#include <asio.hpp>
+
 #include "wired/concepts.h"
 #include "wired/types.h"
+#include "wired/tools/log.h"
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -134,20 +138,20 @@ class message {
 
   private:
     template <typename U>
-    void write_selection(U&& data, selection_tag_2)
-        requires has_wired_serializable<U>;
+    void write_selection(U&& data,
+                         selection_tag_2) requires has_wired_serializable<U>;
     template <typename U>
-    void write_selection(U&& data, selection_tag_1)
-        requires std::ranges::range<U>;
+    void write_selection(U&& data,
+                         selection_tag_1) requires std::ranges::range<U>;
     template <typename U>
     void write_selection(U&& data, selection_tag_0);
 
     template <typename U>
-    void read_selection(U& data, selection_tag_2)
-        requires has_wired_deserializable<U>;
+    void read_selection(U& data,
+                        selection_tag_2) requires has_wired_deserializable<U>;
     template <typename U>
-    void read_selection(U& data, selection_tag_1)
-        requires std::ranges::range<U>;
+    void read_selection(U& data,
+                        selection_tag_1) requires std::ranges::range<U>;
     template <typename U>
     void read_selection(U& data, selection_tag_0);
 
@@ -215,9 +219,8 @@ message<T>& message<T>::operator>>(U&& data) {
  */
 template <typename T>
 template <typename U>
-void message<T>::write_selection(U&& data, selection_tag_2)
-    requires has_wired_serializable<U>
-{
+void message<T>::write_selection(U&& data, selection_tag_2) requires
+    has_wired_serializable<U> {
     auto& msg = *this;
     msg << data.wired_serialize();
 }
@@ -232,10 +235,10 @@ void message<T>::write_selection(U&& data, selection_tag_2)
  */
 template <typename T>
 template <typename U>
-void message<T>::write_selection(U&& data, selection_tag_1)
-    requires std::ranges::range<U>
-{
+void message<T>::write_selection(
+    U&& data, selection_tag_1) requires std::ranges::range<U> {
     using size_type = typename std::remove_reference_t<U>::size_type;
+
     auto& msg = *this;
     size_type size = std::ranges::size(data);
     for (const auto& item : data) {
@@ -261,9 +264,8 @@ void message<T>::write_selection(U&& data, selection_tag_0) {
 
 template <typename T>
 template <typename U>
-void message<T>::read_selection(U& data, selection_tag_2)
-    requires has_wired_deserializable<U>
-{
+void message<T>::read_selection(U& data, selection_tag_2) requires
+    has_wired_deserializable<U> {
     std::vector<uint8_t> buffer;
     auto& msg = *this;
     msg >> buffer;
@@ -272,15 +274,15 @@ void message<T>::read_selection(U& data, selection_tag_2)
 
 template <typename T>
 template <typename U>
-void message<T>::read_selection(U& data, selection_tag_1)
-    requires std::ranges::range<U>
-{
+void message<T>::read_selection(
+    U& data, selection_tag_1) requires std::ranges::range<U> {
     using value_type = typename U::value_type;
     using size_type = typename U::size_type;
 
     auto& msg = *this;
     size_type size;
     msg >> size;
+
     data.clear();
     data.reserve(size);
     for (size_t i = 0; i < size; ++i) {

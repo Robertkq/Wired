@@ -21,10 +21,6 @@ struct client : wired::client_interface<common_messages> {
             ++times_pinged;
             break;
         }
-        case common_messages::client_message: {
-            std::cout << "[]: something \n";
-            break;
-        }
         default: {
             std::cout << "unhandled message type: "
                       << static_cast<uint32_t>(msg.id()) << "\n";

@@ -6,4 +6,5 @@ TabWidth: 4
 PointerAlignment: Left
 AlwaysBreakTemplateDeclarations: Yes
 AllowShortEnumsOnASingleLine: false
+SortIncludes: Never
 ...

@@ -1,12 +1,13 @@
 #ifndef WIRED_CLIENT_H
 #define WIRED_CLIENT_H
 
+#include <asio.hpp>
+
 #include <wired/connection.h>
 #include <wired/message.h>
 #include <wired/ts_deque.h>
 #include <wired/types.h>
 
-#include <asio.hpp>
 #include <deque>
 #include <iostream>
 #include <memory>
@@ -95,7 +96,6 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
 template <typename T>
 std::future<bool> client_interface<T>::connect(const std::string& host,
                                                const std::string& port) {
-
     if (is_connected()) {
         WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                           "Client tried to connect while already connected");
@@ -128,7 +128,6 @@ std::future<bool> client_interface<T>::disconnect() {
     }
     std::future<bool> connection_result = connection_->disconnect();
     connection_.reset();
-    messages_.clear();
     return connection_result;
 }
 

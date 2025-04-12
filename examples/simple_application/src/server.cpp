@@ -17,10 +17,6 @@ class server : public wired::server_interface<common_messages> {
             send(conn, answer);
             break;
         }
-        case common_messages::client_message: {
-            std::cout << "[]: something \n";
-            break;
-        }
         default: {
             std::cout << "unhandled message type: "
                       << static_cast<uint32_t>(msg.id()) << "\n";
