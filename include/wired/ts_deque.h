@@ -1,6 +1,7 @@
 #ifndef WIRED_TS_DEQUE_H
 #define WIRED_TS_DEQUE_H
 
+#include <stdexcept>
 #include <algorithm>
 #include <deque>
 #include <mutex>
@@ -71,6 +72,9 @@ class ts_deque {
     iterator erase(Args&&... args);
     void pop_back();
     void pop_front();
+
+    template <typename... Args>
+    void add_message(message_strategy strategy, Args&&... args);
 
   private:
     std::deque<T> deque_;
@@ -271,6 +275,19 @@ template <typename T>
 void ts_deque<T>::pop_front() {
     std::lock_guard<std::mutex> lock(mutex_);
     deque_.pop_front();
+}
+
+template <typename T>
+template <typename... Args>
+void ts_deque<T>::add_message(message_strategy strategy, Args&&... args) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (strategy == message_strategy::normal) {
+        deque_.emplace_back(std::forward<Args>(args)...);
+    } else if (strategy == message_strategy::immediate) {
+        deque_.emplace_front(std::forward<Args>(args)...);
+    } else {
+        throw std::invalid_argument("Invalid/Unsupported message strategy");
+    }
 }
 
 } // namespace wired
