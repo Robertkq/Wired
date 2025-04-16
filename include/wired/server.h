@@ -91,7 +91,7 @@ template <typename T>
 bool server_interface<T>::send(connection_ptr conn, const message_t& msg,
                                message_strategy strategy) {
     if (conn && conn->is_connected()) {
-        conn->send(msg);
+        conn->send(msg, strategy);
         return true;
     }
     return false;
@@ -102,7 +102,7 @@ bool server_interface<T>::send_all(connection_ptr ignore, const message_t& msg,
                                    message_strategy strategy) {
     connections_.for_each([&msg, &ignore, strategy](connection_ptr conn) {
         if (conn != ignore && conn->is_connected()) {
-            conn->send(msg);
+            conn->send(msg, strategy);
         }
     });
     return true;

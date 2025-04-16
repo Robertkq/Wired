@@ -32,10 +32,15 @@ class client_interface {
     client_interface& operator=(const client_interface&& other) = delete;
     client_interface& operator=(client_interface&& other);
 
+    bool is_connected() const;
+
+    // std::future<bool> ping();
+
     std::future<bool> connect(const std::string& host, const std::string& port);
     std::future<bool> disconnect();
-    bool is_connected() const;
-    std::future<bool> send(const message_t& msg);
+    std::future<bool>
+    send(const message_t& msg,
+         message_strategy strategy = message_strategy::normal);
 
     bool update();
     void run();
@@ -94,6 +99,14 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
 }
 
 template <typename T>
+bool client_interface<T>::is_connected() const {
+    if (!connection_) {
+        return false;
+    }
+    return connection_->is_connected();
+}
+
+template <typename T>
 std::future<bool> client_interface<T>::connect(const std::string& host,
                                                const std::string& port) {
     if (is_connected()) {
@@ -132,21 +145,14 @@ std::future<bool> client_interface<T>::disconnect() {
 }
 
 template <typename T>
-bool client_interface<T>::is_connected() const {
-    if (!connection_) {
-        return false;
-    }
-    return connection_->is_connected();
-}
-
-template <typename T>
-std::future<bool> client_interface<T>::send(const message_t& msg) {
+std::future<bool> client_interface<T>::send(const message_t& msg,
+                                            message_strategy strategy) {
     if (!is_connected()) {
         std::promise<bool> promise;
         promise.set_value(false);
         return promise.get_future();
     }
-    std::future<bool> connection_result = connection_->send(msg);
+    std::future<bool> connection_result = connection_->send(msg, strategy);
     return connection_result;
 }
 

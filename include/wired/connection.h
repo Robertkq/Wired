@@ -32,7 +32,7 @@ class connection : public std::enable_shared_from_this<connection<T>> {
     connection& operator=(connection&& other);
 
     bool is_connected() const;
-    std::future<bool> send(const message_t& msg);
+    std::future<bool> send(const message_t& msg, message_strategy strategy);
     std::future<bool> connect(asio::ip::tcp::resolver::results_type& endpoints);
     std::future<bool> disconnect();
     std::size_t incoming_messages_count() const;
@@ -109,7 +109,8 @@ bool connection<T>::is_connected() const {
 }
 
 template <typename T>
-std::future<bool> connection<T>::send(const message_t& msg) {
+std::future<bool> connection<T>::send(const message_t& msg,
+                                      message_strategy strategy) {
     std::promise<bool> promise;
     std::future<bool> future = promise.get_future();
     if (!is_connected()) {
@@ -117,15 +118,16 @@ std::future<bool> connection<T>::send(const message_t& msg) {
         return future;
     }
     asio::post(io_context_, [this, msg = std::move(msg),
-                             promise = std::move(promise)]() mutable {
-        bool writing = !this->outgoing_messages_.empty();
-        this->outgoing_messages_.emplace_back(
-            std::pair{std::move(msg), std::move(promise)});
+                             promise = std::move(promise), strategy]() mutable {
+        bool writing = !outgoing_messages_.empty();
+        std::pair<message_t, std::promise<bool>> pack{std::move(msg),
+                                                      std::move(promise)};
+        outgoing_messages_.add_message(strategy, std::move(pack));
         WIRED_LOG_MESSAGE(wired::LOG_DEBUG, "Message added to queue");
         if (!writing) {
             WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                               "Starting sending messages procedure");
-            this->write_header();
+            write_header();
         }
     });
     return future;
