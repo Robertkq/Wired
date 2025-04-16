@@ -1,6 +1,7 @@
 #ifndef WIRED_TS_DEQUE_H
 #define WIRED_TS_DEQUE_H
 
+#include <stdexcept>
 #include <algorithm>
 #include <deque>
 #include <mutex>
@@ -284,6 +285,8 @@ void ts_deque<T>::add_message(message_strategy strategy, Args&&... args) {
         deque_.emplace_back(std::forward<Args>(args)...);
     } else if (strategy == message_strategy::immediate) {
         deque_.emplace_front(std::forward<Args>(args)...);
+    } else {
+        throw std::invalid_argument("Invalid/Unsupported message strategy");
     }
 }
 
