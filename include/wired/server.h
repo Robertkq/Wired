@@ -27,16 +27,19 @@ class server_interface {
     virtual ~server_interface();
 
   public:
-    bool start(const std::string& port);
-    bool stop();
+    void start(const std::string& port);
+    void shutdown();
 
     bool is_listening();
 
-    bool send(connection_ptr conn, const message_t& msg,
-              message_strategy strategy = message_strategy::normal);
+    std::future<bool>
+    send(connection_ptr conn, const message_t& msg,
+         message_strategy strategy = message_strategy::normal);
 
-    bool send_all(connection_ptr ignore, const message_t& msg,
-                  message_strategy strategy = message_strategy::normal);
+    std::future<bool>
+    send_all(connection_ptr ignore, const message_t& msg,
+             message_strategy strategy = message_strategy::normal);
+
     bool update();
 
   private:
@@ -65,21 +68,31 @@ server_interface<T>::~server_interface() {
 }
 
 template <typename T>
-bool server_interface<T>::start(const std::string& port) {
+void server_interface<T>::start(const std::string& port) {
     asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), std::stoi(port));
     acceptor_.open(endpoint.protocol());
     acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
     acceptor_.bind(endpoint);
     acceptor_.listen();
     wait_for_client_chain();
-    return true;
 }
 
 template <typename T>
-bool server_interface<T>::stop() {
+void server_interface<T>::shutdown() {
+    connections_.for_each([](connection_ptr conn) {
+        if (conn->is_connected()) {
+            conn->disconnect();
+        }
+    });
+    connections_.clear();
+    messages_.clear();
+    acceptor_.close();
+
     context_.stop();
     thread_.join();
-    return true;
+    idle_work_.reset();
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "server_interface shutdown completed");
 }
 
 template <typename T>
