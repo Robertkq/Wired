@@ -112,7 +112,11 @@ void server_interface<T>::shutdown() {
         result.wait();
     }
 
+    stop_messaging_loop_ = true;
     cv_.notify_all();
+    if (messages_thread_.joinable()) {
+        messages_thread_.join();
+    }
 
     connections_.clear();
     messages_.clear();
