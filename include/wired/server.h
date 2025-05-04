@@ -244,7 +244,7 @@ void server_interface<T>::wait_for_client_chain() {
             } else {
                 WIRED_LOG_MESSAGE(
                     log_level::LOG_DEBUG,
-                    "wait_for_client_chain didn't succed to accept a "
+                    "wait_for_client_chain didn't succeed to accept a "
                     "connection with error code: {} and error message: {}",
                     ec.value(), ec.message());
             }
