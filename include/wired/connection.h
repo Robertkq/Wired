@@ -94,7 +94,7 @@ connection<T>::connection(connection&& other) noexcept
       socket_(std::move(other.socket_)),
       outgoing_messages_(std::move(other.outgoing_messages_)),
       incoming_messages_(std::move(other.incoming_messages_)),
-      aux_message_(std::move(other.aux_message_)), cv_(std::move(other.cv_)) {
+      aux_message_(std::move(other.aux_message_)), cv_(other.cv_) {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "Connection object [{}] called move constructor",
                       (void*)this);
