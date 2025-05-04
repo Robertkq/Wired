@@ -10,6 +10,11 @@ enum class message_strategy : uint8_t {
     immediate = 1 << 1
 }; // enum class message_strategy
 
+enum class execution_policy {
+    blocking,
+    non_blocking
+}; // enum class execution_policy
+
 struct selection_tag_0 {};
 struct selection_tag_1 : selection_tag_0 {};
 struct selection_tag_2 : selection_tag_1 {};

@@ -103,6 +103,7 @@ message_body<T>& message_body<T>::operator=(message_body&& other) noexcept {
 template <typename T>
 class message {
   public:
+    using value_type = T;
     using connection_t = connection<T>;
     using connection_ptr = std::shared_ptr<connection_t>;
     using message_header_t = message_header<T>;

@@ -12,18 +12,15 @@ int main() {
 
     auto future = chatter.connect(SERVER_ADDR, SERVER_PORT);
     bool connected = future.get();
+
     assert(connected);
-    assert(chatter.is_connected());
+
     std::cout << std::format("{}, you have connected to the server\n",
                              chatter.name);
 
-    chatter.update_thread = std::thread([&]() {
-        while (chatter.is_connected()) {
-            chatter.update();
-        }
-    });
-    chatter.update_thread.detach();
     std::cout << "You can start chatting now. Type 'exit' to quit.\n";
+
+    chatter.run(wired::execution_policy::non_blocking);
 
     while (chatter.is_connected()) {
         std::string message;
@@ -34,6 +31,7 @@ int main() {
         if (message.empty()) {
             continue;
         }
+        std::cout << "DEBUG: Sending message: " << message << std::endl;
         wired::message<message_types> msg(message_types::client_message);
         msg << chatter.name;
         msg << message;

@@ -6,6 +6,9 @@
 #include <format>
 #include <iostream>
 #include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
 
 namespace wired {
 
@@ -43,10 +46,13 @@ template <typename... Args>
 void log_message_function(log_level lvl, const char* file, int line,
                           const char* msg, Args&&... args) {
     std::lock_guard<std::mutex> lock(log_mutex);
+    std::ostringstream calling_thread;
+    calling_thread << std::this_thread::get_id();
     std::string short_filename = shorten_filename(file);
     if (current_lvl <= lvl && current_lvl != LOG_DISABLE) {
-        std::cout << std::format("[{}:{}][{}]: ", short_filename, line,
-                                 log_level_names[static_cast<uint8_t>(lvl)]);
+        std::cout << std::format("[{}:{}][{}][TID: {}]: ", short_filename, line,
+                                 log_level_names[static_cast<uint8_t>(lvl)],
+                                 calling_thread.str());
         std::cout << std::vformat(msg, std::make_format_args(args...));
         std::cout << std::endl;
     }

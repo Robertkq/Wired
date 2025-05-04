@@ -36,35 +36,55 @@ class server_interface {
     send(connection_ptr conn, const message_t& msg,
          message_strategy strategy = message_strategy::normal);
 
-    std::future<bool>
+    std::vector<std::future<bool>>
     send_all(connection_ptr ignore, const message_t& msg,
              message_strategy strategy = message_strategy::normal);
 
-    bool update();
+    std::future<bool> kick(connection_ptr conn);
+
+    void run(execution_policy policy = execution_policy::blocking);
 
   private:
-    void run();
+    void messaging_loop();
+    void contribute_to_context_pool();
+    void on_message_notify_callback();
     void wait_for_client_chain();
 
   private:
     asio::io_context context_;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
-    std::thread thread_;
+    std::thread asio_thread_;
     asio::ip::tcp::acceptor acceptor_;
     ts_deque<connection_ptr> connections_;
     ts_deque<message_t> messages_;
+    std::thread messages_thread_;
+    std::condition_variable cv_;
+    std::mutex mutex_;
+    std::atomic<bool> stop_messaging_loop_{false};
 }; // class server_interface
 
 template <typename T>
 server_interface<T>::server_interface()
-    : context_(), idle_work_(asio::make_work_guard(context_)), thread_(),
-      acceptor_(context_), connections_(), messages_() {
-    thread_ = std::thread(&server_interface<T>::run, this);
+    : context_(), idle_work_(asio::make_work_guard(context_)), asio_thread_(),
+      acceptor_(context_), connections_(), messages_(), messages_thread_(),
+      cv_(), mutex_() {
+    asio_thread_ =
+        std::thread(&server_interface<T>::contribute_to_context_pool, this);
 }
 
 template <typename T>
 server_interface<T>::~server_interface() {
-    stop();
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "server_interface object [{}] destructor called",
+                      (void*)this);
+    if (asio_thread_.joinable()) {
+        asio_thread_.join();
+    }
+    stop_messaging_loop_ = true;
+    cv_.notify_all();
+    if (messages_thread_.joinable()) {
+        messages_thread_.join();
+    }
 }
 
 template <typename T>
@@ -79,17 +99,27 @@ void server_interface<T>::start(const std::string& port) {
 
 template <typename T>
 void server_interface<T>::shutdown() {
-    connections_.for_each([](connection_ptr conn) {
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "server_interface shutdown started");
+
+    std::vector<std::future<bool>> results;
+    connections_.for_each([&results](connection_ptr conn) {
         if (conn->is_connected()) {
-            conn->disconnect();
+            results.push_back(conn->disconnect());
         }
     });
+    for (auto& result : results) {
+        result.wait();
+    }
+
+    cv_.notify_all();
+
     connections_.clear();
     messages_.clear();
     acceptor_.close();
 
     context_.stop();
-    thread_.join();
+    asio_thread_.join();
     idle_work_.reset();
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "server_interface shutdown completed");
@@ -101,39 +131,99 @@ bool server_interface<T>::is_listening() {
 }
 
 template <typename T>
-bool server_interface<T>::send(connection_ptr conn, const message_t& msg,
-                               message_strategy strategy) {
+std::future<bool> server_interface<T>::send(connection_ptr conn,
+                                            const message_t& msg,
+                                            message_strategy strategy) {
     if (conn && conn->is_connected()) {
-        conn->send(msg, strategy);
-        return true;
+        return conn->send(msg, strategy);
     }
-    return false;
+    std::promise<bool> promise;
+    promise.set_value(false);
+    return promise.get_future();
 }
 
 template <typename T>
-bool server_interface<T>::send_all(connection_ptr ignore, const message_t& msg,
-                                   message_strategy strategy) {
-    connections_.for_each([&msg, &ignore, strategy](connection_ptr conn) {
-        if (conn != ignore && conn->is_connected()) {
-            conn->send(msg, strategy);
+std::vector<std::future<bool>>
+server_interface<T>::send_all(connection_ptr ignore, const message_t& msg,
+                              message_strategy strategy) {
+    std::vector<std::future<bool>> results;
+    connections_.for_each(
+        [&results, &msg, &ignore, strategy](connection_ptr conn) {
+            if (conn != ignore && conn->is_connected()) {
+                results.push_back(conn->send(msg, strategy));
+            }
+        });
+    return results;
+}
+
+template <typename T>
+std::future<bool> server_interface<T>::kick(connection_ptr conn) {
+    if (conn && conn->is_connected()) {
+        auto ret = conn->disconnect();
+        connections_.erase_remove(conn);
+        return ret;
+    }
+    // FIXME: After disconnecting, the connection is not removed from the list
+    std::promise<bool> promise;
+    promise.set_value(false);
+    return promise.get_future();
+}
+
+template <typename T>
+void server_interface<T>::run(execution_policy policy) {
+    if (policy == execution_policy::blocking) {
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Server message handler is running in blocking mode");
+        messaging_loop();
+    } else if (policy == execution_policy::non_blocking) {
+        if (messages_thread_.joinable()) {
+            WIRED_LOG_MESSAGE(log_level::LOG_ERROR,
+                              "Messaging thread is already running");
+            throw std::runtime_error("Messaging thread is already running");
         }
-    });
-    return true;
-}
-
-template <typename T>
-bool server_interface<T>::update() {
-    if (messages_.empty()) {
-        return false;
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Server message handler is running in non-blocking "
+                          "mode");
+        messages_thread_ =
+            std::thread(&server_interface<T>::messaging_loop, this);
     }
-    message_t msg = messages_.front();
-    messages_.pop_front();
-    on_message(msg, msg.from());
-    return true;
 }
 
 template <typename T>
-void server_interface<T>::run() {
+void server_interface<T>::messaging_loop() {
+    while (is_listening()) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Waiting for messages in the queue");
+        cv_.wait(lock, [this] {
+            return (!messages_.empty() || stop_messaging_loop_);
+        });
+        if (stop_messaging_loop_) {
+            WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                              "Stop messaging loop, exiting");
+            return;
+        }
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Messages in the queue, processing them");
+
+        while (!messages_.empty()) {
+            if (stop_messaging_loop_) {
+                WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                                  "Stop messaging loop, exiting");
+                return;
+            }
+            message_t msg = messages_.front();
+            messages_.pop_front();
+            WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                              "Processing message with id {}",
+                              static_cast<uint32_t>(msg.head().id()));
+            on_message(msg, msg.from());
+        }
+    }
+}
+
+template <typename T>
+void server_interface<T>::contribute_to_context_pool() {
     context_.run();
 }
 
@@ -142,19 +232,21 @@ void server_interface<T>::wait_for_client_chain() {
     acceptor_.async_accept(
         [this](std::error_code ec, asio::ip::tcp::socket socket) {
             if (!ec) {
-                WIRED_LOG_MESSAGE(
-                    log_level::LOG_DEBUG,
-                    "wait_for_client_chain successfully accepted a connection");
                 connection_ptr conn = std::make_shared<connection_t>(
-                    context_, std::move(socket), messages_);
+                    context_, std::move(socket), messages_, cv_);
+                WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                                  "wait_for_client_chain successfully accepted "
+                                  "a connection, obj addr {}",
+                                  (void*)conn.get());
                 if (conn->is_connected()) {
                     connections_.push_back(conn);
                 }
             } else {
-
-                WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
-                                  "wait_for_client_chain didn't succed "
-                                  "accepted a connection");
+                WIRED_LOG_MESSAGE(
+                    log_level::LOG_DEBUG,
+                    "wait_for_client_chain didn't succed to accept a "
+                    "connection with error code: {} and error message: {}",
+                    ec.value(), ec.message());
             }
             wait_for_client_chain();
         });

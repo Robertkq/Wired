@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <thread>
+#include <mutex>
 
 class connection_tests_fixture : public ::testing::Test {
   public:
@@ -46,7 +47,7 @@ class connection_tests_fixture : public ::testing::Test {
                                   "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
                     io_context, std::move(server_socket),
-                    server_incoming_messages);
+                    server_incoming_messages, placeholder_cv);
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "Server failed to accept connection");
@@ -70,7 +71,7 @@ class connection_tests_fixture : public ::testing::Test {
                                       "Client connected to server");
                     client_conn = std::make_shared<connection_t>(
                         io_context, std::move(client_socket),
-                        client_incoming_messages);
+                        client_incoming_messages, placeholder_cv);
                 } else {
                     WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                       "Client failed to connect to server");
@@ -90,6 +91,7 @@ class connection_tests_fixture : public ::testing::Test {
     void TearDown() override {}
 
   protected:
+    std::condition_variable placeholder_cv;
     asio::io_context io_context;
     asio::ip::tcp::socket server_socket;
     asio::ip::tcp::socket client_socket;

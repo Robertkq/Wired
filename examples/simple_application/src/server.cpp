@@ -3,9 +3,11 @@
 
 #include <iostream>
 
-class server : public wired::server_interface<common_messages> {
+using namespace wired;
+
+class server : public server_interface<common_messages> {
   public:
-    server() : wired::server_interface<common_messages>() {}
+    server() : server_interface<common_messages>() {}
     virtual ~server() {}
 
     void on_message(message_t& msg, connection_ptr conn) override {
@@ -27,18 +29,17 @@ class server : public wired::server_interface<common_messages> {
 };
 
 int main() {
-    WIRED_LOG_LEVEL(wired::log_level::LOG_DEBUG);
+    WIRED_LOG_LEVEL(log_level::LOG_DEBUG);
     server simple_server;
     std::cout << "[server]: starting\n";
     simple_server.start("60000");
 
     std::cout << "[server]: running\n";
-    while (true) {
-        simple_server.update();
-    }
+
+    simple_server.run(execution_policy::blocking);
 
     std::cout << "[server]: stopping\n";
-    simple_server.stop();
+    simple_server.shutdown();
 
     return 0;
 }
