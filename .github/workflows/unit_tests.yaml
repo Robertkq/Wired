@@ -1,5 +1,5 @@
 name: unit-tests
-run-name: unit-tests ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
+run-name: unit-tests ${{ github.actor }}-${{ github.event.pull_request.number }}-${{ github.run_number }} 😸
 
 on:
   workflow_call:
