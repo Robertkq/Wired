@@ -1,5 +1,5 @@
 name: windows-setup
-run-name: windows-setup ${{ github.actor }}-{{ github.event.pull_request.number }}-${{ github.run_number }} 😸
+run-name: windows-setup ${{ github.actor }}-${{ github.event.pull_request.number }}-${{ github.run_number }} 😸
 
 
 on:

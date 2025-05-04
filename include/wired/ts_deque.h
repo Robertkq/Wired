@@ -18,6 +18,8 @@ namespace wired {
 template <typename T>
 class ts_deque {
   public:
+    using value_type = typename std::deque<T>::value_type;
+
     using iterator = typename std::deque<T>::iterator;
     using reference = typename std::deque<T>::reference;
     using const_reference = typename std::deque<T>::const_reference;
@@ -75,6 +77,8 @@ class ts_deque {
 
     template <typename... Args>
     void add_message(message_strategy strategy, Args&&... args);
+
+    void erase_remove(value_type value);
 
   private:
     std::deque<T> deque_;
@@ -287,6 +291,15 @@ void ts_deque<T>::add_message(message_strategy strategy, Args&&... args) {
         deque_.emplace_front(std::forward<Args>(args)...);
     } else {
         throw std::invalid_argument("Invalid/Unsupported message strategy");
+    }
+}
+
+template <typename T>
+void ts_deque<T>::erase_remove(value_type value) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = std::remove(deque_.begin(), deque_.end(), value);
+    if (it != deque_.end()) {
+        deque_.erase(it, deque_.end());
     }
 }
 

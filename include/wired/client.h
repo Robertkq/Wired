@@ -3,10 +3,10 @@
 
 #include <asio.hpp>
 
-#include <wired/connection.h>
-#include <wired/message.h>
-#include <wired/ts_deque.h>
-#include <wired/types.h>
+#include "wired/connection.h"
+#include "wired/message.h"
+#include "wired/ts_deque.h"
+#include "wired/types.h"
 
 #include <deque>
 #include <iostream>
@@ -42,45 +42,63 @@ class client_interface {
     send(const message_t& msg,
          message_strategy strategy = message_strategy::normal);
 
-    bool update();
-    void run();
+    void run(execution_policy policy = execution_policy::blocking);
+
+  private:
+    void messaging_loop();
+    void contribute_to_context_pool();
 
   private:
     asio::io_context context_;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
-    std::thread thread_;
+    std::thread asio_thread_;
     connection_ptr connection_;
     ts_deque<message_t> messages_;
+    std::thread messages_thread_;
+    std::condition_variable cv_;
+    std::mutex mutex_;
+    std::atomic<bool> stop_messaging_loop_{false};
 }; // class client_interface
 
 template <typename T>
 client_interface<T>::client_interface()
-    : context_(), idle_work_(asio::make_work_guard(context_)), thread_(),
-      connection_(nullptr), messages_() {
+    : context_(), idle_work_(asio::make_work_guard(context_)), asio_thread_(),
+      connection_(nullptr), messages_(), messages_thread_(), cv_(), mutex_() {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
-                      "client_interface default constructor");
-    thread_ = std::thread(&client_interface<T>::run, this);
+                      "client_interface object [{}] called default constructor",
+                      (void*)this);
+    asio_thread_ =
+        std::thread(&client_interface<T>::contribute_to_context_pool, this);
 }
 
 template <typename T>
 client_interface<T>::client_interface(client_interface&& other)
     : context_(std::move(other.context_)),
       idle_work_(std::move(other.idle_work_)),
-      thread_(std::move(other.thread_)),
+      asio_thread_(std::move(other.asio_thread_)),
       connection_(std::move(other.connection_)),
-      messages_(std::move(other.messages_)) {
+      messages_(std::move(other.messages_)), messages_thread_(),
+      cv_(std::move(other.cv_)), mutex_(std::move(other.mutex_)) {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
-                      "client_interface move constructor");
+                      "client_interface object [{}] called move constructor",
+                      (void*)this);
 }
 
 template <typename T>
 client_interface<T>::~client_interface() {
-    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "client_interface destructor");
-    if (is_connected()) {
-        disconnect();
-    }
+    WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                      "client_interface object [{}] called destructor",
+                      (void*)this);
     context_.stop();
-    thread_.join();
+    if (asio_thread_.joinable()) {
+        asio_thread_.join();
+    }
+
+    stop_messaging_loop_ = true;
+    cv_.notify_all();
+    if (messages_thread_.joinable()) {
+        messages_thread_.join();
+    }
 }
 
 template <typename T>
@@ -91,9 +109,15 @@ client_interface<T>& client_interface<T>::operator=(client_interface&& other) {
 
     context_ = std::move(other.context_);
     idle_work_ = std::move(other.idle_work_);
-    thread_ = std::move(other.thread_);
+    asio_thread_ = std::move(other.asio_thread_);
     connection_ = std::move(other.connection_);
     messages_ = std::move(other.messages_);
+    messages_thread_ = std::move(other.messages_thread_);
+    cv_ = std::move(other.cv_);
+    mutex_ = std::move(other.mutex_);
+
+    other.connection_ = nullptr;
+    other.messages_.clear();
 
     return *this;
 }
@@ -121,12 +145,15 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
             resolver.resolve(host, port);
 
         connection_ = std::make_shared<connection_t>(
-            context_, asio::ip::tcp::socket(context_), messages_);
+            context_, asio::ip::tcp::socket(context_), messages_, cv_);
+
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "connection object address: {}",
+                          (void*)connection_.get());
 
         std::future<bool> connection_result = connection_->connect(endpoints);
         return connection_result;
 
-    } catch (std::exception ec) {
+    } catch (const std::exception& ec) {
         disconnect();
         throw ec;
     }
@@ -140,7 +167,6 @@ std::future<bool> client_interface<T>::disconnect() {
         return promise.get_future();
     }
     std::future<bool> connection_result = connection_->disconnect();
-    connection_.reset();
     return connection_result;
 }
 
@@ -157,18 +183,61 @@ std::future<bool> client_interface<T>::send(const message_t& msg,
 }
 
 template <typename T>
-bool client_interface<T>::update() {
-    if (messages_.empty()) {
-        return false;
+void client_interface<T>::run(execution_policy policy) {
+    stop_messaging_loop_ = false;
+    if (policy == execution_policy::blocking) {
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Client message handler is running in blocking mode");
+        messaging_loop();
+    } else if (policy == execution_policy::non_blocking) {
+        if (messages_thread_.joinable()) {
+            WIRED_LOG_MESSAGE(log_level::LOG_ERROR,
+                              "Messaging thread is already running");
+            throw std::runtime_error("Messaging thread is already running");
+        }
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Client message handler is running in non-blocking "
+                          "mode");
+        messages_thread_ =
+            std::thread(&client_interface<T>::messaging_loop, this);
     }
-    message_t msg = messages_.front();
-    messages_.pop_front();
-    on_message(msg, msg.from());
-    return true;
 }
 
 template <typename T>
-void client_interface<T>::run() {
+void client_interface<T>::messaging_loop() {
+    while (is_connected()) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Waiting for messages in the queue");
+        cv_.wait(lock, [this] {
+            return (!messages_.empty() || stop_messaging_loop_);
+        });
+        if (stop_messaging_loop_) {
+            WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                              "Stop messaging loop, exiting");
+            return;
+        }
+        WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                          "Messages in the queue, processing them");
+
+        while (!messages_.empty()) {
+            if (stop_messaging_loop_) {
+                WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                                  "Stop messaging loop, exiting");
+                return;
+            }
+            message_t msg = messages_.front();
+            messages_.pop_front();
+            WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
+                              "Processing message with id {}",
+                              static_cast<uint32_t>(msg.head().id()));
+            on_message(msg, msg.from());
+        }
+    }
+}
+
+template <typename T>
+void client_interface<T>::contribute_to_context_pool() {
     context_.run();
 }
 

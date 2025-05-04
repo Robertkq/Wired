@@ -10,11 +10,9 @@ int main() {
     std::cout << "Server started on port " << SERVER_PORT << std::endl;
     std::cout << "Press Ctrl+C to stop the server." << std::endl;
 
-    while (true) {
-        serv.update();
-    }
+    serv.run(wired::execution_policy::blocking);
 
-    serv.stop();
+    serv.shutdown();
 
     return 0;
 }

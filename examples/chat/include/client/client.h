@@ -17,7 +17,6 @@ class client : public wired::client_interface<message_types> {
     void on_message(message_t& msg, connection_ptr conn) override;
 
   public:
-    std::thread update_thread;
     std::string name;
     uint32_t id;
 };
