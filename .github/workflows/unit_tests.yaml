@@ -37,7 +37,9 @@ jobs:
 
       - name: Generate certificates
         run: |
-          python3 generate_certf.py
+          mkdir -p build/tests/
+          cd build/tests/
+          python3 ../../tests/unit/generate_cert.py
 
       - name: Build tests
         run: |
