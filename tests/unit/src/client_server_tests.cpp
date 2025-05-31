@@ -77,7 +77,6 @@ TEST_F(client_server_tests_fixture, client_disconnect) {
 
 TEST_F(client_server_tests_fixture, server_send) {
     message_t msg(message_type::server_message);
-    std::cout << server_.connections().size() << " connections" << std::endl;
     auto results = server_.send_all(nullptr, msg);
 
     for (auto& result : results) {

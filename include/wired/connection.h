@@ -230,31 +230,6 @@ std::future<bool> connection<T>::disconnect() {
     asio::post(io_context_, [this, promise = std::move(promise)]() mutable {
         asio::error_code error;
 
-        // ssl_stream_.shutdown(error);
-        // if (error) {
-        //     if (is_disconnect_error(error)) {
-        //         WIRED_LOG_MESSAGE(
-        //             wired::LOG_INFO,
-        //             "{} Remote disconnected gracefully from SSL shutdown "
-        //             "with error code: {} "
-        //             "and error message: {}",
-        //             (void*)this, error.value(), error.message());
-        //     } else {
-        //         WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-        //                           "{} SSL shutdown error "
-        //                           "with error code: {} "
-        //                           "and error message: {}",
-        //                           (void*)this, error.value(),
-        //                           error.message());
-        //         promise.set_exception(
-        //             std::make_exception_ptr(std::runtime_error(
-        //                 "SSL shutdown error: " +
-        //                 std::to_string(error.value()) + " - " +
-        //                 error.message())));
-        //         return;
-        //     }
-        // }
-
         ssl_stream_.lowest_layer().shutdown(
             asio::ip::tcp::socket::shutdown_both, error);
         if (error) {
