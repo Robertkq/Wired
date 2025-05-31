@@ -2,6 +2,7 @@
 #define WIRED_CLIENT_H
 
 #include <asio.hpp>
+#include <asio/ssl.hpp>
 
 #include "wired/connection.h"
 #include "wired/message.h"
@@ -34,6 +35,8 @@ class client_interface {
 
     bool is_connected() const;
 
+    void set_tls_options(const tls_options& options) { options_ = options; }
+
     // std::future<bool> ping();
 
     std::future<bool> connect(const std::string& host, const std::string& port);
@@ -50,6 +53,7 @@ class client_interface {
 
   private:
     asio::io_context context_;
+    asio::ssl::context ssl_context_;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
     std::thread asio_thread_;
     connection_ptr connection_;
@@ -57,13 +61,16 @@ class client_interface {
     std::thread messages_thread_;
     std::condition_variable cv_;
     std::mutex mutex_;
-    std::atomic<bool> stop_messaging_loop_{false};
+    std::atomic<bool> stop_messaging_loop_;
+    tls_options options_;
 }; // class client_interface
 
 template <typename T>
 client_interface<T>::client_interface()
-    : context_(), idle_work_(asio::make_work_guard(context_)), asio_thread_(),
-      connection_(nullptr), messages_(), messages_thread_(), cv_(), mutex_() {
+    : context_(), ssl_context_(asio::ssl::context::tls_client),
+      idle_work_(asio::make_work_guard(context_)), asio_thread_(),
+      connection_(nullptr), messages_(), messages_thread_(), cv_(), mutex_(),
+      stop_messaging_loop_(false), options_() {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "client_interface object [{}] called default constructor",
                       (void*)this);
@@ -138,6 +145,7 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
                           "Client tried to connect while already connected");
         disconnect();
     }
+    tls_options::set_context_options(ssl_context_, options_);
     try {
         asio::ip::tcp::resolver resolver(context_);
 
@@ -145,7 +153,8 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
             resolver.resolve(host, port);
 
         connection_ = std::make_shared<connection_t>(
-            context_, asio::ip::tcp::socket(context_), messages_, cv_);
+            context_, ssl_context_, asio::ip::tcp::socket(context_), messages_,
+            cv_);
 
         WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "connection object address: {}",
                           (void*)connection_.get());

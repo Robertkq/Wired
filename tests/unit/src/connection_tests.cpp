@@ -16,8 +16,7 @@ class connection_tests_fixture : public ::testing::Test {
 
   public:
     connection_tests_fixture()
-        : io_context(), server_socket(io_context), client_socket(io_context),
-          server_conn(nullptr), client_conn(nullptr),
+        : io_context(), server_conn(nullptr), client_conn(nullptr),
           idle_work(io_context.get_executor()),
           io_thread([&]() { io_context.run(); }) {}
 
@@ -28,6 +27,16 @@ class connection_tests_fixture : public ::testing::Test {
 
   protected:
     void SetUp() override {
+
+        verify_certificates();
+
+        ssl_context_client.set_verify_mode(asio::ssl::verify_none);
+        ssl_context_server.set_verify_mode(asio::ssl::verify_none);
+
+        ssl_context_server.use_certificate_chain_file("../server.crt");
+        ssl_context_server.use_private_key_file("../server.key",
+                                                asio::ssl::context::pem);
+
         asio::ip::tcp::acceptor listener(
             io_context,
             asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 0));
@@ -38,51 +47,66 @@ class connection_tests_fixture : public ::testing::Test {
                           server_endpoint.address().to_string(),
                           server_endpoint.port());
 
-        std::promise<void> server_promise;
-        std::future<void> server_future = server_promise.get_future();
+        std::promise<bool> server_promise;
+        std::future<bool> server_future = server_promise.get_future();
 
-        listener.async_accept(server_socket, [&](asio::error_code ec) {
+        // Server accepts connection and performs SSL handshake
+        listener.async_accept([&](asio::error_code ec,
+                                  asio::ip::tcp::socket socket) {
             if (!ec) {
-                WIRED_LOG_MESSAGE(wired::LOG_INFO,
-                                  "Server accepted connection");
                 server_conn = std::make_shared<connection_t>(
-                    io_context, std::move(server_socket),
+                    io_context, ssl_context_server, std::move(socket),
                     server_incoming_messages, placeholder_cv);
+                WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                                  "Server accepted connection with address: {}",
+                                  (void*)server_conn.get());
+
+                // Perform SSL handshake on the server side
+                server_conn->ssl_stream().async_handshake(
+                    asio::ssl::stream_base::server,
+                    [&](const asio::error_code& handshake_error) {
+                        if (!handshake_error) {
+                            WIRED_LOG_MESSAGE(
+                                wired::LOG_INFO,
+                                "Server SSL handshake successful");
+                            server_promise.set_value(true);
+                            server_conn->start_listening();
+                        } else {
+                            WIRED_LOG_MESSAGE(
+                                wired::LOG_ERROR,
+                                "Server SSL handshake failed with error: {}",
+                                handshake_error.message());
+                            server_promise.set_value(false);
+                        }
+                    });
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "Server failed to accept connection");
+                server_promise.set_value(false);
             }
-            server_promise.set_value();
         });
-
-        std::promise<void> client_promise;
-        std::future<void> client_future = client_promise.get_future();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         WIRED_LOG_MESSAGE(wired::LOG_INFO,
                           "Client trying to connect to 127.0.0.1:{}",
                           server_endpoint.port());
-        client_socket.async_connect(
-            asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"),
-                                    server_endpoint.port()),
-            [&](asio::error_code ec) {
-                if (!ec) {
-                    WIRED_LOG_MESSAGE(wired::LOG_INFO,
-                                      "Client connected to server");
-                    client_conn = std::make_shared<connection_t>(
-                        io_context, std::move(client_socket),
-                        client_incoming_messages, placeholder_cv);
-                } else {
-                    WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                                      "Client failed to connect to server");
-                }
-                client_promise.set_value();
-            });
+
+        // Client connects to the server and performs SSL handshake
+
+        client_conn = std::make_shared<connection_t>(
+            io_context, ssl_context_client, asio::ip::tcp::socket(io_context),
+            client_incoming_messages, placeholder_cv);
+
+        asio::ip::tcp::resolver resolver(io_context);
+        asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(
+            "127.0.0.1", std::to_string(server_endpoint.port()));
+
+        auto client_future = client_conn->connect(endpoints);
 
         WIRED_LOG_MESSAGE(wired::LOG_INFO,
                           "Waiting for server and client to connect");
-        server_future.wait();
-        client_future.wait();
+        ASSERT_EQ(server_future.get(), true);
+        ASSERT_EQ(client_future.get(), true);
 
         ASSERT_NE(server_conn, nullptr);
         ASSERT_NE(client_conn, nullptr);
@@ -93,8 +117,8 @@ class connection_tests_fixture : public ::testing::Test {
   protected:
     std::condition_variable placeholder_cv;
     asio::io_context io_context;
-    asio::ip::tcp::socket server_socket;
-    asio::ip::tcp::socket client_socket;
+    asio::ssl::context ssl_context_client{asio::ssl::context::tls_client};
+    asio::ssl::context ssl_context_server{asio::ssl::context::tls_server};
     connection_ptr server_conn;
     connection_ptr client_conn;
     ts_deque server_incoming_messages;
@@ -109,17 +133,19 @@ TEST_F(connection_tests_fixture, connected) {
 }
 
 TEST_F(connection_tests_fixture, disconnect_server) {
-    server_conn->disconnect();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto future = server_conn->disconnect();
+    EXPECT_EQ(future.get(), true);
     EXPECT_EQ(server_conn->is_connected(), false);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     EXPECT_EQ(client_conn->is_connected(), false);
 }
 
 TEST_F(connection_tests_fixture, disconnect_client) {
-    client_conn->disconnect();
+    auto future = client_conn->disconnect();
+    EXPECT_EQ(future.get(), true);
+    EXPECT_EQ(client_conn->is_connected(), false);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     EXPECT_EQ(server_conn->is_connected(), false);
-    EXPECT_EQ(client_conn->is_connected(), false);
 }
 
 TEST_F(connection_tests_fixture, client_send) {

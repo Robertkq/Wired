@@ -2,6 +2,7 @@
 #define WIRED_SERVER_H
 
 #include <asio.hpp>
+#include <asio/ssl.hpp>
 
 #include "wired/connection.h"
 #include "wired/message.h"
@@ -32,6 +33,8 @@ class server_interface {
 
     bool is_listening();
 
+    void set_tls_options(const tls_options& options) { options_ = options; }
+
     std::future<bool>
     send(connection_ptr conn, const message_t& msg,
          message_strategy strategy = message_strategy::normal);
@@ -44,6 +47,8 @@ class server_interface {
 
     void run(execution_policy policy = execution_policy::blocking);
 
+    ts_deque<connection_ptr>& connections() { return connections_; }
+
   private:
     void messaging_loop();
     void contribute_to_context_pool();
@@ -52,6 +57,7 @@ class server_interface {
 
   private:
     asio::io_context context_;
+    asio::ssl::context ssl_context_;
     asio::executor_work_guard<asio::io_context::executor_type> idle_work_;
     std::thread asio_thread_;
     asio::ip::tcp::acceptor acceptor_;
@@ -60,14 +66,16 @@ class server_interface {
     std::thread messages_thread_;
     std::condition_variable cv_;
     std::mutex mutex_;
-    std::atomic<bool> stop_messaging_loop_{false};
+    std::atomic<bool> stop_messaging_loop_;
+    tls_options options_;
 }; // class server_interface
 
 template <typename T>
 server_interface<T>::server_interface()
-    : context_(), idle_work_(asio::make_work_guard(context_)), asio_thread_(),
+    : context_(), ssl_context_{asio::ssl::context::tls_server},
+      idle_work_(asio::make_work_guard(context_)), asio_thread_(),
       acceptor_(context_), connections_(), messages_(), messages_thread_(),
-      cv_(), mutex_() {
+      cv_(), mutex_(), stop_messaging_loop_(false), options_() {
     asio_thread_ =
         std::thread(&server_interface<T>::contribute_to_context_pool, this);
 }
@@ -89,6 +97,7 @@ server_interface<T>::~server_interface() {
 
 template <typename T>
 void server_interface<T>::start(const std::string& port) {
+    tls_options::set_context_options(ssl_context_, options_);
     asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), std::stoi(port));
     acceptor_.open(endpoint.protocol());
     acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
@@ -237,14 +246,35 @@ void server_interface<T>::wait_for_client_chain() {
         [this](std::error_code ec, asio::ip::tcp::socket socket) {
             if (!ec) {
                 connection_ptr conn = std::make_shared<connection_t>(
-                    context_, std::move(socket), messages_, cv_);
+                    context_, ssl_context_, std::move(socket), messages_, cv_);
                 WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                                   "wait_for_client_chain successfully accepted "
                                   "a connection, obj addr {}",
                                   (void*)conn.get());
-                if (conn->is_connected()) {
-                    connections_.push_back(conn);
-                }
+                conn->ssl_stream().async_handshake(
+                    asio::ssl::stream_base::server,
+                    [this, conn](const asio::error_code& handshake_error) {
+                        if (!handshake_error) {
+                            WIRED_LOG_MESSAGE(log_level::LOG_INFO,
+                                              "SSL handshake successful for "
+                                              "connection obj addr {}",
+                                              (void*)conn.get());
+                            if (conn->is_connected()) {
+                                conn->start_listening();
+                                connections_.push_back(conn);
+                            }
+                            wait_for_client_chain();
+                        } else {
+                            WIRED_LOG_MESSAGE(log_level::LOG_ERROR,
+                                              "SSL handshake failed for "
+                                              "connection obj addr {} with "
+                                              "error code: {} and error "
+                                              "message: {}",
+                                              (void*)conn.get(),
+                                              handshake_error.value(),
+                                              handshake_error.message());
+                        }
+                    });
             } else {
                 WIRED_LOG_MESSAGE(
                     log_level::LOG_DEBUG,
@@ -252,7 +282,6 @@ void server_interface<T>::wait_for_client_chain() {
                     "connection with error code: {} and error message: {}",
                     ec.value(), ec.message());
             }
-            wait_for_client_chain();
         });
 }
 
