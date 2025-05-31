@@ -35,6 +35,10 @@ jobs:
           cmake ..
           ${{ env.SUDO }} cmake --install .
 
+      - name: Generate certificates
+        run: |
+          python3 generate_certf.py
+
       - name: Build tests
         run: |
           cd build
