@@ -7,6 +7,7 @@
 #include "wired/types.h"
 
 #include <asio.hpp>
+#include <asio/ssl.hpp>
 #include <functional>
 #include <future>
 #include <iostream>
@@ -22,7 +23,8 @@ class connection : public std::enable_shared_from_this<connection<T>> {
     using message_t = message<T>;
 
   public:
-    connection(asio::io_context& io_context, asio::ip::tcp::socket&& socket,
+    connection(asio::io_context& io_context, asio::ssl::context& ssl_context,
+               asio::ip::tcp::socket&& socket,
                ts_deque<message_t>& incoming_messages,
                std::condition_variable& cv);
     connection(const connection& other) = delete;
@@ -32,20 +34,26 @@ class connection : public std::enable_shared_from_this<connection<T>> {
     connection& operator=(const connection&& other) = delete;
     connection& operator=(connection&& other) noexcept;
 
+    // asio::ip::tcp::socket& socket();
+    // const asio::ip::tcp::socket& socket() const;
+    asio::ssl::stream<asio::ip::tcp::socket>& ssl_stream();
+    const asio::ssl::stream<asio::ip::tcp::socket>& ssl_stream() const;
+
     bool is_connected() const;
     std::future<bool> send(const message_t& msg, message_strategy strategy);
     std::future<bool> connect(asio::ip::tcp::resolver::results_type& endpoints);
+
     std::future<bool> disconnect();
     std::size_t incoming_messages_count() const;
     std::size_t outgoing_messages_count() const;
     ts_deque<message_t>& incoming_messages();
     const ts_deque<message_t>& incoming_messages() const;
 
-    bool is_disconnect_error(const asio::error_code& error) {
-        return error == asio::error::eof ||
-               error == asio::error::connection_reset ||
-               error == asio::error::operation_aborted ||
-               error == asio::error::bad_descriptor;
+    void start_listening() {
+        WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                          "Connection object [{}] started listening",
+                          (void*)this);
+        read_header();
     }
 
   private:
@@ -64,9 +72,17 @@ class connection : public std::enable_shared_from_this<connection<T>> {
 
     void append_finished_message();
 
+    bool is_disconnect_error(const asio::error_code& error) {
+        return error == asio::error::eof ||
+               error == asio::error::connection_reset ||
+               error == asio::error::operation_aborted ||
+               error == asio::error::bad_descriptor;
+    }
+
   private:
     asio::io_context& io_context_;
-    asio::ip::tcp::socket socket_;
+    asio::ssl::context& ssl_context_;
+    asio::ssl::stream<asio::ip::tcp::socket> ssl_stream_;
     ts_deque<std::pair<message_t, std::promise<bool>>> outgoing_messages_;
     ts_deque<message_t>& incoming_messages_;
     message_t aux_message_;
@@ -75,33 +91,27 @@ class connection : public std::enable_shared_from_this<connection<T>> {
 
 template <typename T>
 connection<T>::connection(asio::io_context& io_context,
+                          asio::ssl::context& ssl_context,
                           asio::ip::tcp::socket&& socket,
                           ts_deque<message_t>& incoming_messages,
                           std::condition_variable& cv)
-    : io_context_(io_context), socket_(std::move(socket)), outgoing_messages_(),
+    : io_context_(io_context), ssl_context_(ssl_context),
+      ssl_stream_(std::move(socket), ssl_context_), outgoing_messages_(),
       incoming_messages_(incoming_messages), aux_message_(), cv_(cv) {
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                       "Connection object [{}] called constructor", (void*)this);
-    if (!is_connected()) {
-        return;
-    }
-    read_header();
 }
 
 template <typename T>
 connection<T>::connection(connection&& other) noexcept
     : io_context_(std::move(other.io_context_)),
-      socket_(std::move(other.socket_)),
+      ssl_stream_(std::move(other.ssl_stream_)),
       outgoing_messages_(std::move(other.outgoing_messages_)),
       incoming_messages_(std::move(other.incoming_messages_)),
       aux_message_(std::move(other.aux_message_)), cv_(other.cv_) {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "Connection object [{}] called move constructor",
                       (void*)this);
-    if (!is_connected()) {
-        return;
-    }
-    read_header();
 }
 
 template <typename T>
@@ -111,8 +121,19 @@ connection<T>::~connection() {
 }
 
 template <typename T>
+asio::ssl::stream<asio::ip::tcp::socket>& connection<T>::ssl_stream() {
+    return ssl_stream_;
+}
+
+template <typename T>
+const asio::ssl::stream<asio::ip::tcp::socket>&
+connection<T>::ssl_stream() const {
+    return ssl_stream_;
+}
+
+template <typename T>
 bool connection<T>::is_connected() const {
-    return socket_.is_open();
+    return ssl_stream_.lowest_layer().is_open();
 }
 
 template <typename T>
@@ -146,11 +167,14 @@ connection<T>::connect(asio::ip::tcp::resolver::results_type& endpoints) {
     std::promise<bool> promise;
     std::future<bool> future = promise.get_future();
     if (is_connected()) {
+        WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
+                          "Connection object [{}] already connected",
+                          (void*)this);
         promise.set_value(false);
         return future;
     }
     asio::async_connect(
-        socket_, endpoints,
+        ssl_stream_.lowest_layer(), endpoints,
         [this, promise = std::move(promise)](
             const asio::error_code& error,
             asio::ip::tcp::endpoint endpoint) mutable {
@@ -163,10 +187,29 @@ connection<T>::connect(asio::ip::tcp::resolver::results_type& endpoints) {
                 promise.set_value(false);
                 return;
             }
-            WIRED_LOG_MESSAGE(wired::LOG_INFO, "Connected to: {}",
-                              endpoint.address().to_string());
-            read_header();
-            promise.set_value(true);
+            WIRED_LOG_MESSAGE(
+                wired::LOG_INFO,
+                "Connection object [{}] Connected to: {}, trying to "
+                "perform SSL handshake",
+                (void*)this, endpoint.address().to_string());
+            ssl_stream_.async_handshake(
+                asio::ssl::stream_base::client,
+                [this, promise = std::move(promise)](
+                    const asio::error_code& error) mutable {
+                    if (error) {
+                        WIRED_LOG_MESSAGE(wired::LOG_ERROR,
+                                          "SSL handshake failed\n"
+                                          "with error code: {}\n"
+                                          "and error message: {}",
+                                          error.value(), error.message());
+                        promise.set_value(false);
+                        return;
+                    }
+                    WIRED_LOG_MESSAGE(wired::LOG_INFO,
+                                      "SSL handshake successful");
+                    read_header();
+                    promise.set_value(true);
+                });
         });
     return future;
 }
@@ -175,38 +218,43 @@ template <typename T>
 std::future<bool> connection<T>::disconnect() {
     std::promise<bool> promise;
     std::future<bool> future = promise.get_future();
-    if (!socket_.is_open()) {
+
+    if (!is_connected()) {
         promise.set_value(false);
         return future;
     }
+
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                       "Connection object [{}] called disconnect", (void*)this);
+
     asio::post(io_context_, [this, promise = std::move(promise)]() mutable {
         asio::error_code error;
-        socket_.shutdown(asio::ip::tcp::socket::shutdown_both, error);
+
+        ssl_stream_.lowest_layer().shutdown(
+            asio::ip::tcp::socket::shutdown_both, error);
         if (error) {
             if (is_disconnect_error(error)) {
                 WIRED_LOG_MESSAGE(
                     wired::LOG_INFO,
-                    "{} Remote disconnected gracefully from shutdown "
+                    "{} Remote disconnected gracefully from TCP shutdown "
                     "with error code: {} "
                     "and error message: {}",
                     (void*)this, error.value(), error.message());
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                                  "{} Socket error while shutting down "
+                                  "{} TCP shutdown error "
                                   "with error code: {} "
                                   "and error message: {}",
                                   (void*)this, error.value(), error.message());
-                promise.set_exception(std::make_exception_ptr(
-                    std::runtime_error("Socket shutdown error: " +
-                                       std::to_string(error.value()) + " - " +
-                                       error.message())));
+                promise.set_exception(
+                    std::make_exception_ptr(std::runtime_error(
+                        "TCP shutdown error: " + std::to_string(error.value()) +
+                        " - " + error.message())));
+                return;
             }
         }
 
-        error.clear();
-        socket_.close(error);
+        ssl_stream_.lowest_layer().close(error);
         if (error) {
             if (is_disconnect_error(error)) {
                 WIRED_LOG_MESSAGE(
@@ -217,7 +265,7 @@ std::future<bool> connection<T>::disconnect() {
                     (void*)this, error.value(), error.message());
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
-                                  "{} Socket error while closing "
+                                  "{} Socket close error "
                                   "with error code: {} "
                                   "and error message: {}",
                                   (void*)this, error.value(), error.message());
@@ -225,12 +273,16 @@ std::future<bool> connection<T>::disconnect() {
                     std::make_exception_ptr(std::runtime_error(
                         "Socket close error: " + std::to_string(error.value()) +
                         " - " + error.message())));
+                return;
             }
         }
+
         outgoing_messages_.clear();
         incoming_messages_.clear();
+
         promise.set_value(true);
     });
+
     return future;
 }
 
@@ -257,7 +309,8 @@ const ts_deque<message<T>>& connection<T>::incoming_messages() const {
 template <typename T>
 void connection<T>::read_header() {
     asio::async_read(
-        socket_, asio::buffer(&aux_message_.head(), sizeof(message_header<T>)),
+        ssl_stream_,
+        asio::buffer(&aux_message_.head(), sizeof(message_header<T>)),
         std::bind(&connection<T>::read_header_handler, this,
                   std::placeholders::_1, std::placeholders::_2));
 }
@@ -297,7 +350,7 @@ void connection<T>::read_header_handler(const asio::error_code& error,
 
 template <typename T>
 void connection<T>::read_body() {
-    asio::async_read(socket_,
+    asio::async_read(ssl_stream_,
                      asio::buffer(aux_message_.body().data().data(),
                                   aux_message_.body().data().size()),
                      std::bind(&connection<T>::read_body_handler, this,
@@ -336,7 +389,7 @@ template <typename T>
 void connection<T>::write_header() {
     auto& pair = outgoing_messages_.front();
     auto& msg = pair.first;
-    asio::async_write(socket_,
+    asio::async_write(ssl_stream_,
                       asio::buffer(&msg.head(), sizeof(message_header<T>)),
                       std::bind(&connection<T>::write_header_handler, this,
                                 std::placeholders::_1, std::placeholders::_2));
@@ -389,10 +442,10 @@ template <typename T>
 void connection<T>::write_body() {
     auto& pair = outgoing_messages_.front();
     auto& msg = pair.first;
-    socket_.async_write_some(
-        asio::buffer(msg.body().data().data(), msg.head().size()),
-        std::bind(&connection<T>::write_body_handler, this,
-                  std::placeholders::_1, std::placeholders::_2));
+    asio::async_write(ssl_stream_,
+                      asio::buffer(msg.body().data().data(), msg.head().size()),
+                      std::bind(&connection<T>::write_body_handler, this,
+                                std::placeholders::_1, std::placeholders::_2));
 }
 
 template <typename T>

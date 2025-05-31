@@ -23,8 +23,10 @@ target_include_directories(unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(unit PRIVATE -DASIO_STANDALONE)
 target_link_libraries(unit PRIVATE GTest::gtest)
 
+find_package(OpenSSL REQUIRED)
 find_package(wired REQUIRED)
 
+target_link_libraries(unit PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 target_include_directories(unit PRIVATE ${Wired_INCLUDE_DIRS})
 
 set_target_properties(unit PROPERTIES

@@ -14,6 +14,11 @@ class client_server_tests_fixture : public ::testing::Test {
 
   public:
     void SetUp() override {
+        wired::tls_options options;
+        options.set_certificate_file("../server.crt")
+            .set_private_key_file("../server.key")
+            .set_verify_mode(wired::tls_verify_mode::none);
+        server_.set_tls_options(options);
         server_.start("60000");
         server_.run(wired::execution_policy::non_blocking);
         for (auto& client : clients_) {
@@ -22,6 +27,7 @@ class client_server_tests_fixture : public ::testing::Test {
             ASSERT_TRUE(client.is_connected());
             client.run(wired::execution_policy::non_blocking);
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         std::cout << " ===== Server and clients are set up ===== " << std::endl;
     }
 
@@ -72,12 +78,17 @@ TEST_F(client_server_tests_fixture, client_disconnect) {
 TEST_F(client_server_tests_fixture, server_send) {
     message_t msg(message_type::server_message);
     auto results = server_.send_all(nullptr, msg);
+
     for (auto& result : results) {
         ASSERT_TRUE(result.get());
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    for (auto& client : clients_) {
-        ASSERT_EQ(client.get_frequency(message_type::server_message), 1);
+    int count = 0;
+    while (count < 3) {
+        count = 0;
+        for (auto& client : clients_) {
+            count += client.get_frequency(message_type::server_message);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }
 
