@@ -25,7 +25,7 @@ jobs:
       os: ubuntu-latest
 
   code-coverage:
-    needs: unit-tests
+    needs: setup
     uses: ./.github/workflows/code_coverage.yaml
     with:
       os: ubuntu-latest

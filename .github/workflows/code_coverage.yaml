@@ -12,24 +12,72 @@ jobs:
 
   code-coverage:
     runs-on: ${{ inputs.os }}
+
+    env:
+      SUDO: ""
+
     steps:
+
+
+      - name: Set SUDO for ubuntu-latest
+        if: ${{ inputs.os }} == 'ubuntu-latest'
+        run: echo "SUDO=sudo " >> $GITHUB_ENV
+
+      - name: Install lcov
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install library
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          ${{ env.SUDO }} cmake --install .
+
+      - name: Generate certificates
+        run: |
+          mkdir -p build/tests/
+          cd build/tests/
+          python3 ../../tests/unit/generate_cert.py
+
+      - name: Build tests
+        run: |
+          cd build
+          cmake .. -DUNIT_TESTS=ON
+          cmake --build . --parallel 
+
+      - name: Run unit tests
+        run: |
+          cd build/tests/unit
+          ./unit
+      
       - name: Check .gcno & .gcda files
         run: |
-          if [ -z "$(find . -name '*.gcno' -o -name '*.gcda')" ]; then
-            echo "No .gcno or .gcda files found. Skipping code coverage."
-            exit 0
-          fi
+          find . -name "*.gcno"
+          find . -name "*.gcda"
 
       - name: Run lcov
         run: |
-          mkdir -p coverage
-          lcov --capture --directory . --output-file coverage/coverage.info
-          lcov --remove coverage/coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage/coverage.info
-      - name: Generate HTML report
-        run: |
-          genhtml coverage/coverage.info --output-directory coverage/html
-          echo "Code coverage report generated in coverage/html"
+          pwd
+          ls -lah .
+          ls -lah build/tests/unit
+          cd build/tests/unit
+          find . -name "*.gcno"
+          find . -name "*.gcda"
+          lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
+          lcov --remove coverage.info '*/gtest/*' '*/asio/*' --output-file coverage_filtered.info
+          lcov --summary coverage_filtered.info
+
+
+
           
+
 
     
 
