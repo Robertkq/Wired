@@ -1,15 +1,84 @@
-# name: code-coverage
-# run-name: ${{ github.actor }} is running code coverage 😸
+name: code-coverage
+run-name: ${{ github.actor }} is running code coverage 😸
 
-# on:
-#   workflow_call:
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
 
-# jobs:
+jobs:
 
-#   code-coverage:
+  code-coverage:
+    runs-on: ${{ inputs.os }}
 
-#     steps:
-#       - name: print hi
-#         run: echo hi
+    env:
+      SUDO: ""
+
+    steps:
+
+
+      - name: Set SUDO for ubuntu-latest
+        if: ${{ inputs.os }} == 'ubuntu-latest'
+        run: echo "SUDO=sudo " >> $GITHUB_ENV
+
+      - name: Install lcov
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install library
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          ${{ env.SUDO }} cmake --install .
+
+      - name: Generate certificates
+        run: |
+          mkdir -p build/tests/
+          cd build/tests/
+          python3 ../../tests/unit/generate_cert.py
+
+      - name: Build tests
+        run: |
+          cd build
+          cmake .. -DUNIT_TESTS=ON
+          cmake --build . --parallel 
+
+      - name: Run unit tests
+        run: |
+          cd build/tests/unit
+          ./unit
+      
+      - name: Check .gcno & .gcda files
+        run: |
+          find . -name "*.gcno"
+          find . -name "*.gcda"
+
+      - name: Run lcov
+        run: |
+          pwd
+          ls -lah .
+          ls -lah build/tests/unit
+          cd build/tests/unit
+          find . -name "*.gcno"
+          find . -name "*.gcda"
+          lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
+          lcov --remove coverage.info '*/gtest/*' '*/asio/*' --output-file coverage_filtered.info
+          lcov --summary coverage_filtered.info
+
+
+
+          
+
+
+    
 
 
