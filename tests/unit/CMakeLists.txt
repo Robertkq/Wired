@@ -34,6 +34,9 @@ set_target_properties(unit PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+target_compile_options(unit PRIVATE --coverage)
+target_link_libraries(unit PRIVATE --coverage)
+
 if(WIN32)
     target_compile_definitions(unit PRIVATE _WIN32_WINNT=0x0601)
     target_compile_options(unit PRIVATE /await:strict /std:c++20 /W4)

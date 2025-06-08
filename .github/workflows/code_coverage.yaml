@@ -1,15 +1,36 @@
-# name: code-coverage
-# run-name: ${{ github.actor }} is running code coverage 😸
+name: code-coverage
+run-name: ${{ github.actor }} is running code coverage 😸
 
-# on:
-#   workflow_call:
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
 
-# jobs:
+jobs:
 
-#   code-coverage:
+  code-coverage:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - name: Check .gcno & .gcda files
+        run: |
+          if [ -z "$(find . -name '*.gcno' -o -name '*.gcda')" ]; then
+            echo "No .gcno or .gcda files found. Skipping code coverage."
+            exit 0
+          fi
 
-#     steps:
-#       - name: print hi
-#         run: echo hi
+      - name: Run lcov
+        run: |
+          mkdir -p coverage
+          lcov --capture --directory . --output-file coverage/coverage.info
+          lcov --remove coverage/coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage/coverage.info
+      - name: Generate HTML report
+        run: |
+          genhtml coverage/coverage.info --output-directory coverage/html
+          echo "Code coverage report generated in coverage/html"
+          
+
+    
 
 
