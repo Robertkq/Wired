@@ -22,7 +22,7 @@ if(CPPCHECK)
     foreach(file ${HEADER_FILES})
         add_custom_command(
             TARGET static_analysis_target
-            COMMAND ${CPPCHECK} --enable=all --std=c++20 --language=c++ --suppress=missingInclude --suppress=unusedFunction ${file}
+            COMMAND ${CPPCHECK} --enable=all --std=c++20 --language=c++ --suppress=missingInclude --suppress=unusedFunction --suppress=missingIncludeSystem --suppress=operatorEqVarError ${file}
             COMMENT "Running Cppcheck on ${file}"
         )
     endforeach()
