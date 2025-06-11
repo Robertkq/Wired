@@ -29,3 +29,9 @@ jobs:
     uses: ./.github/workflows/code_coverage.yaml
     with:
       os: ubuntu-latest
+
+  static-analysis:
+    needs: setup
+    uses: ./.github/workflows/static_analysis.yaml
+    with:
+      os: ubuntu-latest

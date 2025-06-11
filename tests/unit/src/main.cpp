@@ -8,9 +8,9 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     parse_args(argc, argv);
 
-    int sc = RUN_ALL_TESTS();
-    std::cerr << "Tests exited with code: " << sc << std::endl;
-    return sc;
+    int status_code = RUN_ALL_TESTS();
+    std::cerr << "Tests exited with code: " << status_code << std::endl;
+    return status_code;
 }
 
 // leaves argc and argv unchanged
@@ -24,14 +24,12 @@ void parse_args(int argc, char** argv) {
             } else if (log_level == "debug") {
                 WIRED_LOG_LEVEL(wired::LOG_DEBUG);
             } else if (log_level == "info") {
-                WIRED_LOG_LEVEL(wired::LOG_WARNING);
+                WIRED_LOG_LEVEL(wired::LOG_INFO);
             } else if (log_level == "warning") {
-                WIRED_LOG_LEVEL(wired::LOG_ERROR);
+                WIRED_LOG_LEVEL(wired::LOG_WARNING);
             } else if (log_level == "error") {
                 WIRED_LOG_LEVEL(wired::LOG_ERROR);
-            } else if (log_level == "critical") {
-                WIRED_LOG_LEVEL(wired::LOG_CRITICAL);
-            } else if (log_level == "all") {
+            } else if (log_level == "critical" || log_level == "all") {
                 WIRED_LOG_LEVEL(wired::LOG_CRITICAL);
             } else {
                 std::cerr << "Unknown log level: " << log_level << std::endl;

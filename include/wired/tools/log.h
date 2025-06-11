@@ -12,6 +12,8 @@
 
 namespace wired {
 
+constexpr uint8_t LOG_LEVEL_COUNT = 6;
+
 enum log_level {
     LOG_DISABLE = 0,
     LOG_DEBUG = 1,
@@ -21,7 +23,7 @@ enum log_level {
     LOG_CRITICAL = 5
 };
 
-inline std::array<const char*, 6> log_level_names = {
+inline std::array<const char*, LOG_LEVEL_COUNT> log_level_names = {
     "DISABLE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"};
 
 inline log_level current_lvl = LOG_DISABLE;

@@ -52,7 +52,7 @@ class connection : public std::enable_shared_from_this<connection<T>> {
     void start_listening() {
         WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                           "Connection object [{}] started listening",
-                          (void*)this);
+                          static_cast<void*>(this));
         read_header();
     }
 
@@ -99,7 +99,8 @@ connection<T>::connection(asio::io_context& io_context,
       ssl_stream_(std::move(socket), ssl_context_), outgoing_messages_(),
       incoming_messages_(incoming_messages), aux_message_(), cv_(cv) {
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
-                      "Connection object [{}] called constructor", (void*)this);
+                      "Connection object [{}] called constructor",
+                      static_cast<void*>(this));
 }
 
 template <typename T>
@@ -111,13 +112,14 @@ connection<T>::connection(connection&& other) noexcept
       aux_message_(std::move(other.aux_message_)), cv_(other.cv_) {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "Connection object [{}] called move constructor",
-                      (void*)this);
+                      static_cast<void*>(this));
 }
 
 template <typename T>
 connection<T>::~connection() {
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
-                      "Connection object [{}] called destructor", (void*)this);
+                      "Connection object [{}] called destructor",
+                      static_cast<void*>(this));
 }
 
 template <typename T>
@@ -169,7 +171,7 @@ connection<T>::connect(asio::ip::tcp::resolver::results_type& endpoints) {
     if (is_connected()) {
         WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
                           "Connection object [{}] already connected",
-                          (void*)this);
+                          static_cast<void*>(this));
         promise.set_value(false);
         return future;
     }
@@ -191,7 +193,7 @@ connection<T>::connect(asio::ip::tcp::resolver::results_type& endpoints) {
                 wired::LOG_INFO,
                 "Connection object [{}] Connected to: {}, trying to "
                 "perform SSL handshake",
-                (void*)this, endpoint.address().to_string());
+                static_cast<void*>(this), endpoint.address().to_string());
             ssl_stream_.async_handshake(
                 asio::ssl::stream_base::client,
                 [this, promise = std::move(promise)](
@@ -225,7 +227,8 @@ std::future<bool> connection<T>::disconnect() {
     }
 
     WIRED_LOG_MESSAGE(wired::LOG_DEBUG,
-                      "Connection object [{}] called disconnect", (void*)this);
+                      "Connection object [{}] called disconnect",
+                      static_cast<void*>(this));
 
     asio::post(io_context_, [this, promise = std::move(promise)]() mutable {
         asio::error_code error;
@@ -239,13 +242,14 @@ std::future<bool> connection<T>::disconnect() {
                     "{} Remote disconnected gracefully from TCP shutdown "
                     "with error code: {} "
                     "and error message: {}",
-                    (void*)this, error.value(), error.message());
+                    static_cast<void*>(this), error.value(), error.message());
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "{} TCP shutdown error "
                                   "with error code: {} "
                                   "and error message: {}",
-                                  (void*)this, error.value(), error.message());
+                                  static_cast<void*>(this), error.value(),
+                                  error.message());
                 promise.set_exception(
                     std::make_exception_ptr(std::runtime_error(
                         "TCP shutdown error: " + std::to_string(error.value()) +
@@ -262,13 +266,14 @@ std::future<bool> connection<T>::disconnect() {
                     "{} Remote disconnected gracefully from close "
                     "with error code: {} "
                     "and error message: {}",
-                    (void*)this, error.value(), error.message());
+                    static_cast<void*>(this), error.value(), error.message());
             } else {
                 WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                                   "{} Socket close error "
                                   "with error code: {} "
                                   "and error message: {}",
-                                  (void*)this, error.value(), error.message());
+                                  static_cast<void*>(this), error.value(),
+                                  error.message());
                 promise.set_exception(
                     std::make_exception_ptr(std::runtime_error(
                         "Socket close error: " + std::to_string(error.value()) +
@@ -325,13 +330,14 @@ void connection<T>::read_header_handler(const asio::error_code& error,
                 "{} Remote disconnected gracefully from read_header "
                 "with error code: "
                 "{} and error message: {}",
-                (void*)this, error.value(), error.message());
+                static_cast<void*>(this), error.value(), error.message());
         } else {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                               "{} Error while reading header "
                               "with error code: {} "
                               "and error message: {}",
-                              (void*)this, error.value(), error.message());
+                              static_cast<void*>(this), error.value(),
+                              error.message());
         }
         disconnect();
         return;
@@ -367,13 +373,14 @@ void connection<T>::read_body_handler(const asio::error_code& error,
                 "{} Remote disconnected gracefully from read_body "
                 "with error code: "
                 "{} and error message: {}",
-                (void*)this, error.value(), error.message());
+                static_cast<void*>(this), error.value(), error.message());
         } else {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                               "{} Error while reading body "
                               "with error code: {} "
                               "and error message: {}",
-                              (void*)this, error.value(), error.message());
+                              static_cast<void*>(this), error.value(),
+                              error.message());
         }
         disconnect();
         return;
@@ -408,13 +415,14 @@ void connection<T>::write_header_handler(const asio::error_code& error,
                 "{} Remote disconnected gracefully from write_header "
                 "with error code: "
                 "{} and error message: {}",
-                (void*)this, error.value(), error.message());
+                static_cast<void*>(this), error.value(), error.message());
         } else {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                               "{} Error while writing header "
                               "with error code: {} "
                               "and error message: {}",
-                              (void*)this, error.value(), error.message());
+                              static_cast<void*>(this), error.value(),
+                              error.message());
         }
         disconnect();
         promise.set_exception(std::make_exception_ptr(std::runtime_error(
@@ -462,13 +470,14 @@ void connection<T>::write_body_handler(const asio::error_code& error,
                 "{} Remote disconnected gracefully from write_body "
                 "with error code: {} "
                 "and error message: {}",
-                (void*)this, error.value(), error.message());
+                static_cast<void*>(this), error.value(), error.message());
         } else {
             WIRED_LOG_MESSAGE(wired::LOG_ERROR,
                               "{} Error while writing body "
                               "with error code: {} "
                               "and error message: {}",
-                              (void*)this, error.value(), error.message());
+                              static_cast<void*>(this), error.value(),
+                              error.message());
         }
         disconnect();
         promise.set_exception(std::make_exception_ptr(std::runtime_error(

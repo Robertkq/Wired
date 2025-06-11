@@ -21,7 +21,7 @@ template <typename T>
 class message_header {
   public:
     message_header() : id_(), size_(0), timestamp_(0) {}
-    message_header(T id) : id_(id), size_(0), timestamp_(0) {}
+    explicit message_header(T id) : id_(id), size_(0), timestamp_(0) {}
     message_header(const message_header& other)
         : id_(other.id_), size_(other.size_), timestamp_(other.timestamp_) {}
     message_header(message_header&& other) noexcept;
@@ -113,7 +113,7 @@ class message {
     message(connection_ptr from, message_header_t head, message_body_t body)
         : from_(from), head_(head), body_(body) {}
     message() : from_(nullptr), head_(), body_() {}
-    message(T id) : from_(nullptr), head_(id), body_() {}
+    explicit message(T id) : from_(nullptr), head_(id), body_() {}
     message(const message& other);
     message(message&& other) noexcept;
 

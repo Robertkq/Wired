@@ -73,7 +73,7 @@ client_interface<T>::client_interface()
       stop_messaging_loop_(false), options_() {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "client_interface object [{}] called default constructor",
-                      (void*)this);
+                      static_cast<void*>(this));
     asio_thread_ =
         std::thread(&client_interface<T>::contribute_to_context_pool, this);
 }
@@ -88,14 +88,14 @@ client_interface<T>::client_interface(client_interface&& other)
       cv_(std::move(other.cv_)), mutex_(std::move(other.mutex_)) {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "client_interface object [{}] called move constructor",
-                      (void*)this);
+                      static_cast<void*>(this));
 }
 
 template <typename T>
 client_interface<T>::~client_interface() {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "client_interface object [{}] called destructor",
-                      (void*)this);
+                      static_cast<void*>(this));
     context_.stop();
     if (asio_thread_.joinable()) {
         asio_thread_.join();
@@ -157,14 +157,14 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
             cv_);
 
         WIRED_LOG_MESSAGE(log_level::LOG_DEBUG, "connection object address: {}",
-                          (void*)connection_.get());
+                          static_cast<void*>(connection_.get()));
 
         std::future<bool> connection_result = connection_->connect(endpoints);
         return connection_result;
 
     } catch (const std::exception& ec) {
         disconnect();
-        throw ec;
+        throw;
     }
 }
 

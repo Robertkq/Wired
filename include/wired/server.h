@@ -84,7 +84,7 @@ template <typename T>
 server_interface<T>::~server_interface() {
     WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                       "server_interface object [{}] destructor called",
-                      (void*)this);
+                      static_cast<void*>(this));
     if (asio_thread_.joinable()) {
         asio_thread_.join();
     }
@@ -250,7 +250,7 @@ void server_interface<T>::wait_for_client_chain() {
                 WIRED_LOG_MESSAGE(log_level::LOG_DEBUG,
                                   "wait_for_client_chain successfully accepted "
                                   "a connection, obj addr {}",
-                                  (void*)conn.get());
+                                  static_cast<void*>(conn.get()));
                 conn->ssl_stream().async_handshake(
                     asio::ssl::stream_base::server,
                     [this, conn](const asio::error_code& handshake_error) {
@@ -258,7 +258,7 @@ void server_interface<T>::wait_for_client_chain() {
                             WIRED_LOG_MESSAGE(log_level::LOG_INFO,
                                               "SSL handshake successful for "
                                               "connection obj addr {}",
-                                              (void*)conn.get());
+                                              static_cast<void*>(conn.get()));
                             if (conn->is_connected()) {
                                 conn->start_listening();
                                 connections_.push_back(conn);
@@ -270,7 +270,7 @@ void server_interface<T>::wait_for_client_chain() {
                                               "connection obj addr {} with "
                                               "error code: {} and error "
                                               "message: {}",
-                                              (void*)conn.get(),
+                                              static_cast<void*>(conn.get()),
                                               handshake_error.value(),
                                               handshake_error.message());
                         }
