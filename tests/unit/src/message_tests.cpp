@@ -7,15 +7,16 @@
 
 class message_tests_fixture : public ::testing::Test {
   public:
-    message_tests_fixture() : msg() {}
+    message_tests_fixture() {}
 
   protected:
     void SetUp() override {}
 
     void TearDown() override {}
 
-  protected:
     wired::message<message_type> msg;
+    std::vector<int> vector1 = {40, 41, 42, 43, 44};
+    std::vector<int> vector2 = {45, 46, 47, 48, 49};
 };
 
 TEST_F(message_tests_fixture, default_constructor) {
@@ -45,24 +46,21 @@ TEST_F(message_tests_fixture, input_single_multi) {
 }
 
 TEST_F(message_tests_fixture, input_vector) {
-    std::vector<int> v = {40, 41, 42, 43, 43};
     msg.id(message_type::vector);
-    msg << v;
+    msg << vector1;
     EXPECT_EQ(msg.id(), message_type::vector);
     EXPECT_EQ(msg.body().data().size(),
-              v.size() * sizeof(int) + sizeof(size_t));
+              vector1.size() * sizeof(int) + sizeof(size_t));
 }
 
 TEST_F(message_tests_fixture, input_vector_multi) {
-    std::vector<int> v1 = {40, 41, 42, 43, 43};
-    std::vector<int> v2 = {50, 51, 52, 53, 53};
     msg.id(message_type::vector);
-    msg << v1;
-    msg << v2;
+    msg << vector1;
+    msg << vector2;
     EXPECT_EQ(msg.id(), message_type::vector);
     EXPECT_EQ(msg.body().data().size(),
-              v1.size() * sizeof(int) + sizeof(size_t) +
-                  v2.size() * sizeof(int) + sizeof(size_t));
+              vector1.size() * sizeof(int) + sizeof(size_t) +
+                  vector2.size() * sizeof(int) + sizeof(size_t));
 }
 
 TEST_F(message_tests_fixture, input_wired_serialize) {
@@ -88,42 +86,42 @@ TEST_F(message_tests_fixture, input_wired_serialize_multi) {
 
 TEST_F(message_tests_fixture, output_single) {
     msg << int(42);
-    int i;
-    msg >> i;
-    EXPECT_EQ(i, 42);
+    int value;
+    msg >> value;
+    EXPECT_EQ(value, 42);
     EXPECT_EQ(msg.body().data().size(), 0);
     EXPECT_EQ(msg.head().size(), 0);
 }
 
 TEST_F(message_tests_fixture, output_single_multi) {
     msg << int(42) << int(43) << int(44);
-    int i1, i2, i3;
-    msg >> i3 >> i2 >> i1;
-    EXPECT_EQ(i3, 44);
-    EXPECT_EQ(i2, 43);
-    EXPECT_EQ(i1, 42);
+    int value1;
+    int value2;
+    int value3;
+    msg >> value3 >> value2 >> value1;
+    EXPECT_EQ(value3, 44);
+    EXPECT_EQ(value2, 43);
+    EXPECT_EQ(value1, 42);
     EXPECT_EQ(msg.body().data().size(), 0);
     EXPECT_EQ(msg.head().size(), 0);
 }
 
 TEST_F(message_tests_fixture, output_vector) {
-    std::vector<int> v = {40, 41, 42, 43, 43};
-    msg << v;
-    std::vector<int> v2;
-    msg >> v2;
-    EXPECT_EQ(v, v2);
+    msg << vector1;
+    std::vector<int> vector2;
+    msg >> vector2;
+    EXPECT_EQ(vector1, vector2);
     EXPECT_EQ(msg.body().data().size(), 0);
     EXPECT_EQ(msg.head().size(), 0);
 }
 
 TEST_F(message_tests_fixture, output_vector_multi) {
-    std::vector<int> v1 = {40, 41, 42, 43, 43};
-    std::vector<int> v2 = {50, 51, 52, 53, 53};
-    msg << v1 << v2;
-    std::vector<int> v3, v4;
-    msg >> v3 >> v4;
-    EXPECT_EQ(v1, v4);
-    EXPECT_EQ(v2, v3);
+    msg << vector1 << vector2;
+    std::vector<int> vector3;
+    std::vector<int> vector4;
+    msg >> vector3 >> vector4;
+    EXPECT_EQ(vector1, vector4);
+    EXPECT_EQ(vector2, vector3);
     EXPECT_EQ(msg.body().data().size(), 0);
     EXPECT_EQ(msg.head().size(), 0);
 }

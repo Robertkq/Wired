@@ -164,7 +164,7 @@ std::future<bool> client_interface<T>::connect(const std::string& host,
 
     } catch (const std::exception& ec) {
         disconnect();
-        throw ec;
+        throw;
     }
 }
 

@@ -1,0 +1,50 @@
+name: static-analysis
+run-name: ${{ github.actor }} is running static analysis 😸
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+
+jobs:
+
+  static-analysis:
+    runs-on: ${{ inputs.os }}
+
+    env:
+      SUDO: ""
+
+    steps:
+
+      - name: Set SUDO for ubuntu-latest
+        if: ${{ inputs.os }} == 'ubuntu-latest'
+        run: echo "SUDO=sudo " >> $GITHUB_ENV
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get install -y cppcheck
+          cppcheck --version
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run static analyzer test
+        run: |
+          cd tests/static_analyzer
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build . --verbose
+
+
+
+          
+
+
+    
+
+
