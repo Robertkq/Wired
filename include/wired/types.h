@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <asio/ssl.hpp>
 
 namespace wired {
 
