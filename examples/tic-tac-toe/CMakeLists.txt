@@ -1,20 +1,21 @@
 cmake_minimum_required(VERSION 3.22)
-project(simple_application VERSION 1.0.0)
+project(chat VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Find Wired package
 find_package(Wired REQUIRED)
-
 message("Wired_INCLUDE_DIRS: ${Wired_INCLUDE_DIRS}")
 
 # Find OpenSSL package
 find_package(OpenSSL REQUIRED)
 
 # define client target with Wired as dependency
-add_executable(client src/client.cpp)
-target_include_directories(client PRIVATE include)
+file(GLOB CLIENT_SRC src/client/*.cpp src/common/*.cpp)
+add_executable(client ${CLIENT_SRC})
+target_include_directories(client PRIVATE ./include/client)
+target_include_directories(client PRIVATE ./include/common)
 target_include_directories(client PRIVATE ${Wired_INCLUDE_DIRS})
 
 target_link_libraries(client PRIVATE OpenSSL::SSL OpenSSL::Crypto)
@@ -25,8 +26,10 @@ set_target_properties(client PROPERTIES
 )
 
 # define server target with Wired as dependency
-add_executable(server src/server.cpp)
-target_include_directories(server PRIVATE include)
+file(GLOB SERVER_SRC src/server/*.cpp)
+add_executable(server ${SERVER_SRC})
+target_include_directories(server PRIVATE ./include/server)
+target_include_directories(server PRIVATE ./include/common)
 target_include_directories(server PRIVATE ${Wired_INCLUDE_DIRS})
 
 target_link_libraries(server PRIVATE OpenSSL::SSL OpenSSL::Crypto)

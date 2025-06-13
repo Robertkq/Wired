@@ -30,7 +30,12 @@ class server : public server_interface<common_messages> {
 
 int main() {
     WIRED_LOG_LEVEL(log_level::LOG_DEBUG);
+    wired::tls_options tls_opts;
+    tls_opts.set_certificate_file("server.crt")
+        .set_private_key_file("server.key")
+        .set_verify_mode(wired::tls_verify_mode::peer);
     server simple_server;
+    simple_server.set_tls_options(tls_opts);
     std::cout << "[server]: starting\n";
     simple_server.start("60000");
 
