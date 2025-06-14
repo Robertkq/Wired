@@ -135,7 +135,7 @@ class message {
     message& operator<<(U&& data);
 
     template <typename U>
-    message& operator>>(U&& data);
+    message& operator>>(U& data);
 
   private:
     template <typename U>
@@ -205,8 +205,8 @@ message<T>& message<T>::operator<<(U&& data) {
 
 template <typename T>
 template <typename U>
-message<T>& message<T>::operator>>(U&& data) {
-    read_selection(std::forward<U>(data), selection_tag_2{});
+message<T>& message<T>::operator>>(U& data) {
+    read_selection(data, selection_tag_2{});
     sync();
     return *this;
 }

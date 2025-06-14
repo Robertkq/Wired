@@ -13,8 +13,8 @@ concept has_wired_serializable = requires(T t) {
 };
 
 template <typename T>
-concept has_wired_deserializable = requires(T t) {
-    { t.wired_deserialize(std::vector<uint8_t>()) } -> std::same_as<void>;
+concept has_wired_deserializable = requires(T t, std::vector<uint8_t>&& data) {
+    { t.wired_deserialize(std::move(data)) } -> std::same_as<void>;
 };
 
 template <typename T>
