@@ -15,7 +15,7 @@ class server : public server_interface<common_messages> {
         case common_messages::client_ping: {
             std::cout << "[server]: I got a ping from the client!\n";
             message_t answer{common_messages::server_ping};
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             send(conn, answer);
             break;
         }
