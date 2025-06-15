@@ -71,7 +71,7 @@ jobs:
           find . -name "*.gcno"
           find . -name "*.gcda"
           lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
-          lcov --remove coverage.info '*/gtest/*' '*/asio/*' --output-file coverage_filtered.info
+          lcov --remove coverage.info '*13*' '*openssl*' '*/gtest/*' '*/asio/*' --output-file coverage_filtered.info
           lcov --summary coverage_filtered.info
 
 
